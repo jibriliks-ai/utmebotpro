@@ -1,19 +1,24 @@
 
+import os, sys
+sys.path.insert(0, os.path.dirname(__file__))
+for sub in ["utme-bot","src","."]:
+    p = os.path.join(os.path.dirname(__file__), sub)
+    if os.path.exists(p) and p not in sys.path:
+        sys.path.insert(0, p)
+
 from flask import Flask, request, jsonify
-import os
 
 app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "🎓 UTME Bot Webhook OK - Telegram bot runs separately"
+    return "🎓 UTME Bot Webhook OK - Live"
 
 @app.route("/flw-webhook", methods=["POST"])
 def flw_webhook():
     data = request.json or {}
     print(f"WEBHOOK: {data}")
     try:
-        # Lazy import so Flask can start even if payment.py missing
         from payment import grant_premium
         event = data.get("event")
         txn_data = data.get("data", {})
@@ -37,8 +42,8 @@ def health():
     try:
         from payment import load_db
         return jsonify({"status":"ok","premium":len(load_db())})
-    except:
-        return jsonify({"status":"ok"})
+    except Exception as e:
+        return jsonify({"status":"ok","error":str(e)})
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
