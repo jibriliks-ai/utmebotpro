@@ -1,3 +1,8 @@
+import os, sys
+sys.path.insert(0, os.path.dirname(__file__))
+for sub in ['utme-bot','src','.']:
+    p=os.path.join(os.path.dirname(__file__),sub)
+    if os.path.exists(p): sys.path.insert(0,p)
 
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
