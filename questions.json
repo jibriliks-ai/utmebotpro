@@ -12,14 +12,15 @@
       "D": "Euglena"
     },
     "answer": "C",
-    "explanation": "Peripatus is considered a living fossil because it has remained unchanged for millions of years and shows features of both annelids and arthropods."
+    "explanation": "Peripatus is considered a living fossil because it has remained unchanged for millions of years and shows features of both annelids and arthropods.",
+    "examType": "utme"
   },
   {
     "id": 2,
     "subject": "Chemistry",
     "year": 2023,
     "topic": "Acids and Bases",
-    "question": "What is the pH of a neutral solution at 25\u00b0C?",
+    "question": "What is the pH of a neutral solution at 25°C?",
     "options": {
       "A": "0",
       "B": "7",
@@ -27,7 +28,8 @@
       "D": "1"
     },
     "answer": "B",
-    "explanation": "At 25\u00b0C, neutral pH is 7. Below 7 is acidic, above 7 is basic."
+    "explanation": "At 25°C, neutral pH is 7. Below 7 is acidic, above 7 is basic.",
+    "examType": "utme"
   },
   {
     "id": 3,
@@ -42,6 +44,87 @@
       "D": "Rude"
     },
     "answer": "B",
-    "explanation": "Eloquent means fluent or persuasive in speaking or writing."
+    "explanation": "Eloquent means fluent or persuasive in speaking or writing.",
+    "examType": "utme"
+  },
+  {
+    "id": 4,
+    "subject": "Mathematics",
+    "year": 2022,
+    "topic": "Algebra",
+    "question": "If 2x + 3 = 11, what is x?",
+    "options": {
+      "A": "2",
+      "B": "3",
+      "C": "4",
+      "D": "5"
+    },
+    "answer": "C",
+    "explanation": "2x + 3 = 11 => 2x = 8 => x = 4",
+    "examType": "utme"
+  },
+  {
+    "id": 5,
+    "subject": "Physics",
+    "year": 2020,
+    "topic": "Motion",
+    "question": "The unit of force is?",
+    "options": {
+      "A": "Joule",
+      "B": "Newton",
+      "C": "Watt",
+      "D": "Pascal"
+    },
+    "answer": "B",
+    "explanation": "Force is measured in Newtons (N)",
+    "examType": "utme"
+  },
+  {
+    "id": 6,
+    "subject": "Economics",
+    "year": 2021,
+    "topic": "Demand and Supply",
+    "question": "When demand increases and supply remains constant, price will?",
+    "options": {
+      "A": "Fall",
+      "B": "Rise",
+      "C": "Remain constant",
+      "D": "Fluctuate"
+    },
+    "answer": "B",
+    "explanation": "If demand increases while supply stays same, price rises due to scarcity.",
+    "examType": "utme"
+  },
+  {
+    "id": 7,
+    "subject": "Government",
+    "year": 2022,
+    "topic": "Constitution",
+    "question": "The supreme law of a country is called?",
+    "options": {
+      "A": "Decree",
+      "B": "Edict",
+      "C": "Constitution",
+      "D": "Act"
+    },
+    "answer": "C",
+    "explanation": "Constitution is the supreme law of the land.",
+    "examType": "utme"
+  },
+  {
+    "id": 8,
+    "subject": "Literature",
+    "year": 2020,
+    "topic": "Literary Terms",
+    "question": "A long narrative poem is called?",
+    "options": {
+      "A": "Sonnet",
+      "B": "Epic",
+      "C": "Ballad",
+      "D": "Ode"
+    },
+    "answer": "B",
+    "explanation": "An epic is a long narrative poem about heroic deeds.",
+    "examType": "utme"
   }
 ]
