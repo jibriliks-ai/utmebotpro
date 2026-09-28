@@ -341,9 +341,15 @@ def start_telegram_bot():
         break
 
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=start_telegram_bot, daemon=True)
-    bot_thread.start()
-    print("Bot thread started", flush=True)
-    port = int(os.getenv("PORT", 10000))
-    print(f"Binding Flask to 0.0.0.0:{port}", flush=True)
-    flask_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    # Flask in daemon thread so it doesn't block
+    def run_flask():
+        port = int(os.getenv("PORT", 10000))
+        print(f"Binding Flask to 0.0.0.0:{port}", flush=True)
+        flask_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    print("Flask thread started - Now starting Telegram bot in main thread (fixes event loop error)", flush=True)
+    time.sleep(1)
+    # Bot polling in MAIN thread - fixes "no current event loop in thread"
+    start_telegram_bot()
