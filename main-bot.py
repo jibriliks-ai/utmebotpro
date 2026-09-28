@@ -1,16 +1,18 @@
-import os, sys
+import os
+import sys
 sys.path.insert(0, os.path.dirname(__file__))
 for sub in ['utme-bot','src','.']:
     p=os.path.join(os.path.dirname(__file__),sub)
     if os.path.exists(p): sys.path.insert(0,p)
 
 import os
+import json
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 from telegram.constants import ParseMode
-import json
 
-# Lazy imports with fallback
+# Lazy imports
 try:
     from cbt_engine import CBTEngine
     cbt = CBTEngine()
@@ -28,7 +30,6 @@ except:
 try:
     from config import BOT_TOKEN, SUBJECTS
 except:
-    import os
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     SUBJECTS = ["English","Mathematics","Biology","Chemistry","Physics","Economics","Government","Literature"]
 
@@ -38,7 +39,7 @@ except:
     PREMIUM_PRICE=2000
     def is_premium(uid): return False
     def get_premium_info(uid): return None
-    def create_flutterwave_link(uid,email="",name=""): return None,"payment.py missing"
+    def create_flutterwave_link(uid,email="",name=""): return None,"payment.py missing - upload payment.py to GitHub"
     def verify_by_tx_ref(tx): return False,"missing"
     def grant_premium(uid,days=30,tx_ref=None,email=None): return None
 
@@ -108,7 +109,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text(f"❌ Not yet. Tx: {tx_ref}")
         return
     if cbt is None:
-        await query.message.reply_text("⚠️ Question DB not loaded")
+        await query.message.reply_text("⚠️ Question DB not loaded - upload questions.json")
         return
     if data.startswith("combo_"):
         subs = ["English","Mathematics","Biology","Chemistry"] if "science" in data else ["English","Literature","Government","CRS"]
@@ -189,7 +190,16 @@ def main():
     if not BOT_TOKEN:
         print("❌ BOT_TOKEN not set - set it in Render Environment")
         return
-    print(f"BOT_TOKEN found: {BOT_TOKEN[:5]}...")
+    print(f"BOT_TOKEN found: {BOT_TOKEN[:5]}... len {len(BOT_TOKEN)}")
+    # CRITICAL FIX: Delete any existing webhook that blocks polling
+    try:
+        print("🔄 Deleting existing Telegram webhook to allow polling...")
+        r = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=true", timeout=15)
+        print(f"DeleteWebhook response: {r.text[:300]}")
+    except Exception as e:
+        print(f"DeleteWebhook failed (will try polling anyway): {e}")
+
+    print("Building Telegram Application...")
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("mock", mock))
@@ -197,8 +207,15 @@ def main():
     app.add_handler(CommandHandler("subscribe", subscribe_cmd))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_email))
-    print("UTME Bot polling started...")
-    app.run_polling()
+    print("✅ Handlers registered")
+    print("UTME Bot polling started... send /start in Telegram now!")
+    try:
+        app.run_polling(drop_pending_updates=True, allowed_updates=["message","callback_query"])
+    except Exception as e:
+        print(f"❌ Polling crashed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 if __name__ == "__main__":
     main()
