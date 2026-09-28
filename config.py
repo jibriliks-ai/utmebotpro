@@ -8,7 +8,7 @@ ALOC_TOKEN = os.getenv("ALOC_TOKEN")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY")
 FLW_PUBLIC_KEY = os.getenv("FLW_PUBLIC_KEY")
-PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "1500"))
+PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
 
 # JAMB Official Subjects - Complete Syllabus
 SUBJECTS = ["English","Mathematics","Biology","Chemistry","Physics","Economics","Government","Literature","Commerce","CRS"]
