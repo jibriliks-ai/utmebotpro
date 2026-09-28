@@ -14,6 +14,6 @@ services:
       - key: FLW_PUBLIC_KEY
         sync: false
       - key: FLW_SECRET_HASH
-        value: utme_secret_hash_123
+        value: utmebot12345
       - key: PREMIUM_PRICE
         value: 2000
