@@ -331,8 +331,7 @@ def start_telegram_bot():
             app.add_handler(CommandHandler("subscribe", subscribe_cmd))
             app.add_handler(CallbackQueryHandler(handle_callback))
             app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_email))
-            print("Handlers registered - Starting polling...", flush=True)
-            print("If you see 'Conflict' error, another bot instance is running - waiting 10s and retrying", flush=True)
+            print("Handlers registered - Starting polling... Bot is LIVE!", flush=True)
             app.run_polling(drop_pending_updates=True, allowed_updates=["message","callback_query"])
         except Exception as e:
             print(f"Polling crashed: {e} - Retrying in 10s", flush=True)
