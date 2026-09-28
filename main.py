@@ -301,30 +301,45 @@ async def practice_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def start_telegram_bot():
     if not BOT_TOKEN:
-        print("BOT_TOKEN not set", flush=True)
+        print("BOT_TOKEN not set - Flask will still run but bot wont respond", flush=True)
         return
     if not TG_AVAILABLE:
         print("telegram library not available", flush=True)
         return
-    print(f"BOT_TOKEN found: {BOT_TOKEN[:5]}...", flush=True)
-    try:
-        import requests
-        print("Deleting webhook...", flush=True)
-        r = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=true", timeout=15)
-        print(f"DeleteWebhook: {r.text[:200]}", flush=True)
-    except Exception as e:
-        print(f"DeleteWebhook failed: {e}", flush=True)
-    print("Building Application...", flush=True)
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start_cmd))
-    app.add_handler(CommandHandler("mock", mock_cmd))
-    app.add_handler(CommandHandler("practice", practice_cmd))
-    app.add_handler(CommandHandler("subscribe", subscribe_cmd))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_email))
-    print("Handlers registered", flush=True)
-    print("UTME Bot polling started...", flush=True)
-    app.run_polling(drop_pending_updates=True)
+    print(f"BOT_TOKEN found: {BOT_TOKEN[:10]}... len {len(BOT_TOKEN)}", flush=True)
+    # Delete webhook with retries
+    for i in range(3):
+        try:
+            import requests
+            print(f"Deleting webhook attempt {i+1}...", flush=True)
+            r = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=true", timeout=15)
+            print(f"DeleteWebhook: {r.text[:500]}", flush=True)
+            if '"ok":true' in r.text.lower() or '"result":true' in r.text.lower():
+                break
+        except Exception as e:
+            print(f"DeleteWebhook failed {i+1}: {e}", flush=True)
+        time.sleep(2)
+    
+    # Retry polling on conflict
+    while True:
+        try:
+            print("Building Application...", flush=True)
+            app = Application.builder().token(BOT_TOKEN).build()
+            app.add_handler(CommandHandler("start", start_cmd))
+            app.add_handler(CommandHandler("mock", mock_cmd))
+            app.add_handler(CommandHandler("practice", practice_cmd))
+            app.add_handler(CommandHandler("subscribe", subscribe_cmd))
+            app.add_handler(CallbackQueryHandler(handle_callback))
+            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_email))
+            print("Handlers registered - Starting polling...", flush=True)
+            print("If you see 'Conflict' error, another bot instance is running - waiting 10s and retrying", flush=True)
+            app.run_polling(drop_pending_updates=True, allowed_updates=["message","callback_query"])
+        except Exception as e:
+            print(f"Polling crashed: {e} - Retrying in 10s", flush=True)
+            import traceback; traceback.print_exc()
+            time.sleep(10)
+            continue
+        break
 
 if __name__ == "__main__":
     bot_thread = threading.Thread(target=start_telegram_bot, daemon=True)
