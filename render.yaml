@@ -17,9 +17,3 @@ services:
         value: utme_secret_hash_123
       - key: PREMIUM_PRICE
         value: 2000
-      - key: RUN_MODE
-        value: both
-      - key: ALOC_TOKEN
-        sync: false
-      - key: DEEPSEEK_API_KEY
-        sync: false
