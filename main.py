@@ -86,17 +86,26 @@ def verify_by_tx_ref(tx_ref):
 
 class CBTEngine:
     def __init__(self):
-        self.json_path = "questions.json"
         self.db = []
-        if os.path.exists(self.json_path):
-            try:
-                with open(self.json_path,'r',encoding='utf-8') as jf:
-                    self.db=json.load(jf)
-                print(f"Loaded {len(self.db)} from JSON", flush=True)
-            except Exception as e:
-                print(f"JSON load error: {e}", flush=True)
+        # Load from multiple sources: questions.json OR questions_part*.json
+        json_files = ["questions.json"] + [f"questions_part{i}.json" for i in range(1, 11)]
+        loaded_files = []
+        for jf_path in json_files:
+            if os.path.exists(jf_path):
+                try:
+                    with open(jf_path,'r',encoding='utf-8') as jf:
+                        chunk = json.load(jf)
+                        if isinstance(chunk, list):
+                            self.db.extend(chunk)
+                            loaded_files.append(f"{jf_path}({len(chunk)})")
+                except Exception as e:
+                    print(f"JSON load error {jf_path}: {e}", flush=True)
+        
+        if loaded_files:
+            print(f"Loaded {len(self.db)} from JSON: {', '.join(loaded_files)}", flush=True)
+        
         if not self.db:
-            print("No DB, using dummy", flush=True)
+            print("No DB found, using dummy", flush=True)
             self.db=[{"id":1,"subject":"Biology","year":2020,"topic":"General","question":"What is biology?","options":{"A":"Study of life","B":"Study of rocks","C":"Study of stars","D":"Study of metals"},"answer":"A","explanation":"Biology is study of life","examType":"utme"}]
         self.active_exams={}
     def get_questions(self, subject=None, limit=40):
