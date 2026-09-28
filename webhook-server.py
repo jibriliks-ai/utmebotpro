@@ -4,29 +4,27 @@ import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 app = Flask(__name__)
-
 FLW_SECRET_HASH = os.getenv("FLW_SECRET_HASH", "utmebot12345")
 
 @app.route("/")
 def home():
-    return "UTME Bot LIVE - Webhook: /flw-webhook"
+    return "🎓 UTME Bot LIVE - Webhook: /flw-webhook - Health: /health"
 
 @app.route("/health")
 def health():
     try:
         from payment import load_db
         db = load_db()
-        return jsonify({"status":"ok","premium_users":len(db)})
+        return jsonify({"status":"ok","premium_users":len(db),"url":"https://utmebot.onrender.com","hash":FLW_SECRET_HASH})
     except Exception as e:
-        return jsonify({"status":"ok","error":str(e)})
+        return jsonify({"status":"ok","error":str(e),"url":"https://utmebot.onrender.com"})
 
 @app.route("/flw-webhook", methods=["POST"])
 def flw_webhook():
-    signature = request.headers.get("verif-hash") or request.headers.get("Verif-Hash") or request.headers.get("VERIF-HASH")
-    print(f"Signature received: {signature}, Expected: {FLW_SECRET_HASH}")
-    print(f"Body: {request.get_data(as_text=True)[:500]}")
-
+    signature = request.headers.get("verif-hash") or request.headers.get("Verif-Hash")
+    print(f"Signature: {signature}, Expected: {FLW_SECRET_HASH}")
     data = request.json or {}
+    print(f"Webhook body: {str(data)[:500]}")
     try:
         from payment import grant_premium
         event = data.get("event")
