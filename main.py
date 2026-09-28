@@ -11,7 +11,7 @@ try:
 except:
     pass
 
-print("=== UTME Bot Starting (ALL-IN-ONE) ===", flush=True)
+print("=== UTME Bot Starting ===", flush=True)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY")
 FLW_SECRET_HASH = os.getenv("FLW_SECRET_HASH", "utmebot12345")
@@ -157,6 +157,89 @@ cbt = CBTEngine()
 
 from flask import Flask, request, jsonify
 flask_app = Flask(__name__)
+
+@flask_app.route("/admin/import")
+def admin_import():
+    """Easy import: Call https://your-app.onrender.com/admin/import?aloc_token=YOUR_TOKEN&secret=utmebot12345"""
+    import requests
+    token = request.args.get("aloc_token") or os.getenv("ALOC_TOKEN")
+    secret = request.args.get("secret", "")
+    # Simple protection
+    if secret != os.getenv("FLW_SECRET_HASH", "utmebot12345"):
+        return jsonify({"error": "Invalid secret. Use ?secret=your FLW_SECRET_HASH"}), 403
+    if not token:
+        return jsonify({"error": "Provide ?aloc_token=YOUR_ALOC_TOKEN"}), 400
+    
+    # Run import in background thread so request doesn't timeout
+    def do_import():
+        try:
+            print(f"Starting 50k import with token {token[:10]}...", flush=True)
+            BASE_URL = "https://questions.aloc.com.ng/api/v2"
+            SUBJECTS_MAP = {"english":"English","mathematics":"Mathematics","biology":"Biology","chemistry":"Chemistry","physics":"Physics","economics":"Economics","government":"Government","literature":"Literature","crs":"CRS","commerce":"Commerce"}
+            TARGET = {"english":5000,"mathematics":5000,"biology":5000,"chemistry":5000,"physics":5000,"economics":4000,"government":4000,"literature":4000,"commerce":4000,"crs":3000}
+            all_q = []
+            headers = {"AccessToken": token, "Accept": "application/json"}
+            for subj, lim in TARGET.items():
+                qs = []
+                for page in range(1, 40):
+                    if len(qs) >= lim:
+                        break
+                    try:
+                        url = f"{BASE_URL}/m?subject={subj}&type=utme" if page==1 else f"{BASE_URL}/q?subject={subj}&type=utme"
+                        r = requests.get(url, headers=headers, timeout=30)
+                        if r.status_code != 200:
+                            break
+                        data = r.json()
+                        batch = data.get("data", data) if isinstance(data, dict) else data
+                        if not isinstance(batch, list):
+                            batch = [batch] if isinstance(batch, dict) else []
+                        if not batch:
+                            break
+                        for q in batch:
+                            try:
+                                opts = q.get("option") or {}
+                                options = {"A": opts.get("a") or opts.get("A") or "", "B": opts.get("b") or opts.get("B") or "", "C": opts.get("c") or opts.get("C") or "", "D": opts.get("d") or opts.get("D") or ""}
+                                if not all(options.values()):
+                                    continue
+                                ans = (q.get("answer") or "").strip().upper()
+                                if ans not in ["A","B","C","D"]:
+                                    continue
+                                qs.append({"id": len(qs)+len(all_q)+1, "subject": SUBJECTS_MAP.get(subj, subj.capitalize()), "year": int(q.get("year") or 2020), "topic": q.get("topic") or "General", "question": q.get("question") or "", "options": options, "answer": ans, "explanation": q.get("solution") or f"Answer is {ans}", "examType": "utme"})
+                                if len(qs) >= lim:
+                                    break
+                            except:
+                                continue
+                        time.sleep(0.3)
+                    except Exception as e:
+                        print(f"Import error {subj} {e}", flush=True)
+                        break
+                print(f"Imported {subj}: {len(qs)}", flush=True)
+                all_q.extend(qs)
+            random.shuffle(all_q)
+            for i,q in enumerate(all_q):
+                q["id"] = i+1
+            with open("questions.json","w",encoding="utf-8") as jf:
+                json.dump(all_q, jf, ensure_ascii=False, indent=2)
+            print(f"IMPORT DONE: {len(all_q)} questions saved! Restarting bot to load new DB...", flush=True)
+            # Reload CBT engine
+            global cbt
+            cbt.db = all_q
+        except Exception as e:
+            print(f"Import failed: {e}", flush=True)
+            import traceback; traceback.print_exc()
+    
+    import threading
+    threading.Thread(target=do_import, daemon=True).start()
+    return jsonify({"status": "Import started in background", "message": "Check logs, wait 10 mins, then /health will show 40000+ questions. File will be overwritten."})
+
+@flask_app.route("/admin/status")
+def admin_status():
+    try:
+        count = len(cbt.db) if cbt else 0
+    except:
+        count = 0
+    return jsonify({"questions": count, "bot_token": bool(os.getenv("BOT_TOKEN")), "aloc_token_set": bool(os.getenv("ALOC_TOKEN") or request.args.get("aloc_token"))})
+
 
 @flask_app.route("/")
 def home():
@@ -349,7 +432,7 @@ if __name__ == "__main__":
 
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
-    print("Flask thread started - Now starting Telegram bot in main thread (fixes event loop error)", flush=True)
+    print("Flask thread started - Bot polling in main thread", flush=True)
     time.sleep(1)
     # Bot polling in MAIN thread - fixes "no current event loop in thread"
     start_telegram_bot()
