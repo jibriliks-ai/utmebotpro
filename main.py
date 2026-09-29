@@ -165,6 +165,14 @@ def get_top_scorer():
         return None, 0
     top = max(stats.items(), key=lambda x: x[1].get('best_score',0))
     return top[1].get('name','Anonymous'), top[1].get('best_score',0)
+def get_top_scorer():
+    stats = load_json(STATS_FILE, {})
+    if not stats:
+        return None, 0
+    top = max(stats.items(), key=lambda x: x[1].get('best_score',0))
+    return top[1].get('name','Anonymous'), top[1].get('best_score',0)
+
+
 
 # ============ CLINICAL AI TUTOR BRAIN v5 - ANSWERS ANY QUESTION ============
 TUTOR_KNOWLEDGE = {
@@ -569,7 +577,69 @@ def health():
     except:
         count = 50000
         subj_counts = {}
-    return jsonify({"bot_token_exists": bool(BOT_TOKEN), "questions": count, "status": "ok", "subjects": dict(subj_counts), "premium_price": PREMIUM_PRICE, "upgrade_url": f"{RENDER_URL}/upgrade", "features": ["Betmaster inner menu fixed", "Blue handle expand", "AI Tutor real answers", "Perfect voice", "Persistent memory", "No repeat in mock", "Past Qs by year any year"]})
+    return jsonify({"bot_token_exists": bool(BOT_TOKEN), "questions": count, "status": "ok", "subjects": dict(subj_counts), "premium_price": PREMIUM_PRICE, "upgrade_url": f"{RENDER_URL}/upgrade", "channel_id_set": bool(os.getenv("CHANNEL_ID")), "channel_link": os.getenv("CHANNEL_LINK", "https://t.me/+Qw3DqGwCSM4wMDk0"), "features": ["Channel auto-poster 8:30AM 1PM 8PM", "Clinical brain", "Payment fixed", "Blue handle", "No repeats"]})
+
+@flask_app.route("/post/<slot>")
+def manual_post(slot):
+    """Manual trigger for testing - /post/morning, /post/afternoon, /post/evening"""
+    secret = request.args.get('secret', '')
+    # Simple protection - use BOT_TOKEN first 10 chars or custom secret
+    expected = os.getenv("POST_SECRET", "utme123")
+    if secret != expected and secret != (BOT_TOKEN[:10] if BOT_TOKEN else ""):
+        return jsonify({"error": "Invalid secret. Use ?secret=utme123 or your bot token prefix"}), 403
+    
+    try:
+        from channel_poster import generate_morning_challenge, generate_leaderboard, generate_real_talk, post_to_channel
+        channel_id = os.getenv("CHANNEL_ID", "")
+        if slot == "morning":
+            msg = generate_morning_challenge(cbt)
+        elif slot == "afternoon":
+            msg = generate_leaderboard(STATS_FILE)
+        elif slot == "evening":
+            msg = generate_real_talk(STATS_FILE)
+        else:
+            return jsonify({"error": "Use morning, afternoon, or evening"}), 400
+        
+        if channel_id:
+            success = post_to_channel(msg, BOT_TOKEN, channel_id)
+            return jsonify({"slot": slot, "posted": success, "message": msg[:200], "channel_id": channel_id})
+        else:
+            # No channel ID - return message that would be posted
+            return jsonify({"slot": slot, "posted": False, "reason": "CHANNEL_ID not set - add it in Render env", "message": msg, "channel_id": None})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@flask_app.route("/channel-info")
+def channel_info():
+    """Help page to get channel ID"""
+    return """
+    <html><body style="font-family:Arial; background:#1a2035; color:white; padding:20px;">
+    <h2>📢 Channel Setup for Auto-Poster</h2>
+    <p>Your channel invite: https://t.me/+Qw3DqGwCSM4wMDk0</p>
+    <h3>Steps to enable auto-posting:</h3>
+    <ol>
+    <li>Add @UTMESuccessBot as ADMIN in your channel (with Post Messages permission)</li>
+    <li>Get your Channel ID: Forward any message from your channel to @userinfobot or @getidsbot - it will show ID like -1001234567890</li>
+    <li>Or use @RawDataBot - forward message to it</li>
+    <li>Go to Render Dashboard > Environment > Add variable:<br>
+    <code>CHANNEL_ID = -100xxxxxxxxxx</code><br>
+    <code>CHANNEL_LINK = https://t.me/+Qw3DqGwCSM4wMDk0</code><br>
+    <code>BOT_USERNAME_LINK = @UTMESuccessBot</code>
+    </li>
+    <li>Save and redeploy</li>
+    </ol>
+    <h3>Test posting:</h3>
+    <p>After setting CHANNEL_ID, visit:<br>
+    <code>/post/morning?secret=utme123</code><br>
+    <code>/post/afternoon?secret=utme123</code><br>
+    <code>/post/evening?secret=utme123</code>
+    </p>
+    <p>Auto posts at 8:30AM, 1PM, 8PM WAT (Lagos time)</p>
+    </body></html>
+    """
+
 
 @flask_app.route("/upgrade")
 @flask_app.route("/upgrade/<uid>")
@@ -1687,5 +1757,22 @@ if __name__ == "__main__":
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     print("Flask thread started", flush=True)
+    time.sleep(2)
+    
+    # Start channel auto-poster - 8:30AM, 1PM, 8PM WAT
+    try:
+        from channel_poster import start_channel_poster
+        channel_id = os.getenv("CHANNEL_ID", "")
+        print(f"CHANNEL_ID env: {channel_id[:20] if channel_id else 'NOT SET - will log only'}", flush=True)
+        if cbt is None:
+            print("cbt not yet initialized, poster will use fallback questions", flush=True)
+        # Start poster even if CHANNEL_ID not set - it will log what it would post
+        start_channel_poster(BOT_TOKEN, channel_id, cbt, STATS_FILE)
+        print("✅ Channel auto-poster started - 8:30AM, 1PM, 8PM WAT", flush=True)
+    except Exception as e:
+        print(f"Channel poster failed to start: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+    
     time.sleep(1)
     start_telegram_bot()
