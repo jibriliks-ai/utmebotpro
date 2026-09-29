@@ -983,26 +983,17 @@ class CBTEngine:
 cbt = CBTEngine()
 
 def format_question(q, idx, total, time_left=None):
-    time_str = f"⏱ {time_left//60}:{time_left%60:02d}" if time_left else ""
-    # Clean header without extra pipes
-    header = f"📝 Q{idx+1}/{total} | {q['subject']} | {q.get('year','')} | {q.get('topic','')} {time_str}
-
-"
-    # Use html.escape for safety but keep bold tags real
+    time_str = f" {time_left//60}:{time_left%60:02d}" if time_left else ""
+    header = f"Q{idx+1}/{total} | {q['subject']} | {q.get('year','')} | {q.get('topic','')} {time_str}\n\n"
     question_text = html.escape(q['question'])
-    # Remove any existing <b> tags inside question to avoid double
     question_text = question_text.replace('&lt;b&gt;','').replace('&lt;/b&gt;','').replace('<b>','').replace('</b>','')
-    body = f"<b>{question_text}</b>
-
-"
+    body = f"<b>{question_text}</b>\n\n"
     opts_list = []
     for k,v in q['options'].items():
         v_clean = html.escape(str(v))
-        # Clean any stray <b> tags inside options
         v_clean = v_clean.replace('&lt;b&gt;','').replace('&lt;/b&gt;','').replace('<b>','').replace('</b>','')
         opts_list.append(f"<b>{k}</b>: {v_clean}")
-    opts = "
-".join(opts_list)
+    opts = "\n".join(opts_list)
     return header + body + opts
 
 # ============ BETMASTER STYLE MENUS - FIXED INNER MENU ============
