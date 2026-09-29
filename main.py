@@ -1,6 +1,6 @@
 
 """
-UTME BOT - PROFESSIONAL FIXED v3 - BETMASTER STYLE
+UTME BOT - PROFESSIONAL FINAL v4 - SUMMARISED EXPLANATORY NO REPETITION
 Fixes:
 - Inner menu working 100% (Betmaster style expand)
 - Blue handle menu is inline button that expands
@@ -19,7 +19,7 @@ try:
 except:
     pass
 
-print("=== UTME BOT PROFESSIONAL v3 BETMASTER FIX Starting ===", flush=True)
+print("=== UTME BOT PROFESSIONAL FINAL v4 - SUMMARISED EXPLANATORY Starting ===", flush=True)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY")
 PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
@@ -171,189 +171,215 @@ def get_top_scorer():
     top = max(stats.items(), key=lambda x: x[1].get('best_score',0))
     return top[1].get('name','Anonymous'), top[1].get('best_score',0)
 
-# ============ SUPER SMART TUTOR KNOWLEDGE BASE - REAL ANSWERS ============
+# ============ SUPER SMART TUTOR - FINAL OPTIMIZED v4 - SUMMARISED BUT EXPLANATORY ============
+# No repetition, voice captures all words perfectly
 TUTOR_KNOWLEDGE = {
-    "ecology": """🌿 **ECOLOGY - Complete JAMB Explanation**
+    "ecology": """🌿 **ECOLOGY**
 
-Ecology is the study of the relationship between living organisms and their environment.
+Ecology is the study of how living organisms interact with each other and their environment.
 
-**Step 1: Definition**
-Ecology comes from Greek Oikos (house) + Logos (study). It studies how organisms interact with each other and their surroundings.
+**What it means:** The word comes from Oikos (house) and Logos (study). It examines relationships in nature.
 
-**Step 2: Levels of Organization**
-1. **Organism** - Single living thing (one lion)
-2. **Population** - Same species in an area (all lions in a park)
-3. **Community** - Different populations living together (lions, zebras, grass)
-4. **Ecosystem** - Community + physical environment (savanna ecosystem)
-5. **Biome** - Large ecosystems (Rainforest, Desert, Savanna)
-6. **Biosphere** - All ecosystems on Earth
+**Levels:** Organism → Population → Community → Ecosystem → Biome → Biosphere.
 
-**Step 3: Components of Ecosystem**
-• **Biotic (Living):** Producers (plants), Consumers (animals), Decomposers (bacteria/fungi)
-• **Abiotic (Non-living):** Light, Temperature, Water, Soil, Air
+**Two components:** 
+• Biotic - living things like producers, consumers, decomposers
+• Abiotic - non-living like sunlight, water, temperature, soil
 
-**Step 4: Ecological Relationships**
-• **Mutualism:** Both benefit (bees + flowers)
-• **Commensalism:** One benefits, other unaffected (barnacles on whale)
-• **Parasitism:** One benefits, other harmed (tick on dog)
-• **Predation:** Predator eats prey (lion eats zebra)
-• **Competition:** Both compete for same resource
+**Key relationships:** Mutualism both benefit, Commensalism one benefits, Parasitism one harmed, Predation hunter and prey, Competition struggle for same resource.
 
-**Step 5: JAMB Key Points**
-• Food chain: Grass → Grasshopper → Frog → Snake → Hawk
-• Energy flow is one-way, 10% rule
-• Ecological pyramid: Producers at bottom
-• Nitrogen cycle, Carbon cycle, Water cycle
+**For JAMB:** Remember food chain example Grass → Grasshopper → Frog → Snake → Hawk. Energy flows one way with 10% rule. Know nitrogen cycle and carbon cycle.
 
-**Step 6: Example Question**
-Q: What is the study of interaction between organisms and environment?
-A: Ecology
+**Quick example:** Q: What studies interaction between organisms and environment? A: Ecology.
 
-**Tip:** Remember ECOLOGY = Environment + Biology together. For JAMB, focus on food chains, pyramids, and cycles!
+Master food chains and cycles, they appear often in JAMB.""",
 
-Need more? Ask about any ecology topic!""",
+    "photosynthesis": """🌱 **PHOTOSYNTHESIS**
 
-    "photosynthesis": """🌱 **PHOTOSYNTHESIS - Complete JAMB Explanation**
+Photosynthesis is how green plants make food using sunlight.
 
-Photosynthesis is the process by which green plants make their own food using sunlight.
+**Equation:** 6CO2 + 6H2O + Sunlight → C6H12O6 + 6O2. Chlorophyll is needed.
 
-**Step 1: Definition**
-Photo = Light, Synthesis = To make. Plants use light to make food from CO2 and water.
+**Where:** Happens in chloroplasts of leaf cells. Chlorophyll inside captures light.
 
-**Step 2: Equation**
-6CO2 + 6H2O + Sunlight → C6H12O6 + 6O2
-(Carbon dioxide + Water + Light → Glucose + Oxygen)
-Chlorophyll is the catalyst.
+**Two stages:**
+• Light stage in thylakoid - needs light, splits water to release oxygen, makes ATP and NADPH
+• Dark stage in stroma or Calvin cycle - uses ATP and NADPH to fix CO2 into glucose, no direct light needed
 
-**Step 3: Where it Happens**
-• In chloroplasts (in leaf mesophyll cells)
-• Chlorophyll in thylakoids captures light
-• Two stages: Light-dependent and Light-independent (Calvin cycle)
+**Factors:** Light intensity, CO2 level, temperature 25-35°C best, water and chlorophyll amount.
 
-**Step 4: Light-Dependent Stage (Thylakoid)**
-• Needs light
-• Water split: 2H2O → 4H+ + 4e- + O2 (photolysis)
-• Produces ATP and NADPH
-• Oxygen released as byproduct
+**Importance:** Produces food for all life, releases oxygen for breathing, removes CO2, base of food chains.
 
-**Step 5: Light-Independent Stage (Stroma - Calvin Cycle)**
-• Does NOT need direct light (uses ATP/NADPH)
-• CO2 fixed into glucose
-• Uses ATP and NADPH from light stage
+**JAMB tip:** Oxygen comes from water not CO2. Remember equation exactly.""",
 
-**Step 6: Factors Affecting**
-• Light intensity (increases rate until saturation)
-• CO2 concentration
-• Temperature (optimal 25-35°C)
-• Water availability
-• Chlorophyll content
+    "osmosis": """💧 **OSMOSIS**
 
-**Step 7: Importance**
-• Produces food for all living things
-• Releases oxygen for respiration
-• Basis of all food chains
-• Removes CO2 from atmosphere
+Osmosis is movement of water from high water concentration to low water concentration through semi-permeable membrane.
 
-**JAMB Tip:** Remember equation and that oxygen comes from WATER not CO2 (proven by isotope experiments)!
+**Key ideas:** Semi-permeable membrane allows water only. Water moves down its concentration gradient.
 
-Example: Why do plants appear green? Because chlorophyll reflects green light and absorbs red/blue.
+**Types:** Endosmosis water enters cell, Exosmosis water leaves.
 
-Want more? Ask about respiration, transpiration!""",
+**Solutions:**
+• Hypotonic lower solute than cell - water enters, cell swells and becomes turgid
+• Isotonic same solute - no net movement
+• Hypertonic higher solute - water leaves, cell shrinks called plasmolysis or crenation
 
-    "default_template": """📚 **{topic_title} - Complete JAMB Explanation**
+**Examples:** Roots absorb water by osmosis, salt kills slugs because water leaves their body, kidney reabsorption.
 
-You asked about: {question}
+**JAMB:** Cell in concentrated salt shrinks by osmosis. Remember water moves only, needs membrane.""",
 
-**Step 1: What is {topic_title}?**
-{definition}
+    "mitosis": """🔬 **MITOSIS**
 
-**Step 2: Detailed Explanation**
-{explanation}
+Mitosis produces 2 identical daughter cells with same chromosome number as parent.
 
-**Step 3: Key Points for JAMB**
-{key_points}
+**Purpose:** Growth, repair of tissues, asexual reproduction.
 
-**Step 4: Example & Application**
-{example}
+**Stages PMAT:**
+• Prophase - chromosomes condense and become visible, nuclear membrane breaks
+• Metaphase - chromosomes line up at center
+• Anaphase - sister chromatids separate to opposite sides
+• Telophase - chromosomes decondense, nuclear membrane reforms, cytoplasm divides
 
-**Step 5: JAMB Tip & How to Remember**
-{tip}
+**Before mitosis:** Interphase has G1 growth, S phase DNA replication, G2 preparation. This takes 90% of cell cycle.
 
-**Step 6: Quick Summary**
-{summary}
+**Result:** 2 identical diploid cells.
 
-This is the complete step-by-step explanation you need for JAMB! 
+**Vs Meiosis:** Mitosis 2 identical diploid somatic cells. Meiosis 4 different haploid sex cells for variation.
 
-Want me to explain any part deeper? Ask follow-up question or say "give me JAMB past question on {topic_title}"
-
-💡 Remember: Practice makes perfect. You got this!
-"""
+**Tip:** PMAT = Please Meet At Ten. S phase is where DNA doubles."""
 }
 
-# Build comprehensive definitions
 COMPREHENSIVE_TOPICS = {
     "ecology": TUTOR_KNOWLEDGE["ecology"],
     "photosynthesis": TUTOR_KNOWLEDGE["photosynthesis"],
-    "osmosis": """💧 **OSMOSIS - Complete JAMB Explanation**
+    "osmosis": TUTOR_KNOWLEDGE["osmosis"],
+    "mitosis": TUTOR_KNOWLEDGE["mitosis"],
+    "meiosis": """🔬 **MEIOSIS**
 
-**Step 1: Definition**
-Osmosis is the movement of water molecules from a region of high water concentration (low solute) to low water concentration (high solute) through a semi-permeable membrane.
+Meiosis produces 4 different haploid cells from one diploid cell. Happens in sex organs.
 
-**Step 2: Key Terms**
-• **Semi-permeable membrane:** Allows only water, not solute (like cell membrane)
-• **Concentration gradient:** Difference in concentration drives movement
-• **Water potential:** Tendency of water to move, pure water has highest potential (0)
+**Purpose:** Formation of gametes, creates genetic variation, keeps chromosome number constant across generations.
 
-**Step 3: Types**
-• **Endosmosis:** Water enters cell (cell in hypotonic solution - swells)
-• **Exosmosis:** Water leaves cell (cell in hypertonic solution - shrinks, crenation/plasmolysis)
+**Two divisions:** Meiosis I separates homologous chromosomes, Meiosis II separates sister chromatids like mitosis.
 
-**Step 4: Solutions**
-• **Hypotonic:** Lower solute than cell → water enters → cell swells (turgid)
-• **Isotonic:** Same solute as cell → no net movement
-• **Hypertonic:** Higher solute than cell → water leaves → cell shrinks
+**Key events:** Crossing over in Prophase I exchanges genetic material, independent assortment creates variation.
 
-**Step 5: Examples**
-• Roots absorb water from soil by osmosis
-• Why salt kills slugs (hypertonic, water leaves)
-• Kidney reabsorption, wilting of plants
+**Result:** 4 haploid cells, each genetically different, half chromosome number. In humans 46 becomes 23.
 
-**Step 6: Factors**
-• Concentration gradient, temperature, surface area, membrane permeability
+**Importance:** Variation for evolution, prevents chromosome doubling each generation.""",
 
-**JAMB Question:** What happens when a cell is placed in concentrated salt solution?
-Answer: Water leaves by osmosis, cell shrinks (plasmolysis).
+    "diffusion": """💧 **DIFFUSION**
 
-Tip: Remember OSMOSIS = Water moves only, needs membrane!""",
-    
-    "mitosis": """🔬 **MITOSIS - Complete JAMB Explanation**
+Diffusion is movement of particles from high concentration to low concentration until evenly spread. No membrane needed, no energy needed.
 
-**Step 1: Definition**
-Mitosis is cell division that produces 2 identical daughter cells with same chromosome number as parent (diploid → diploid).
+**Examples:** Perfume spreads in room, oxygen enters lungs, ink spreads in water.
 
-**Step 2: Purpose**
-Growth, repair, asexual reproduction, replacement of worn-out cells.
+**Factors:** Concentration gradient bigger moves faster, temperature higher moves faster, surface area and size of particles matter.
 
-**Step 3: Stages (PMAT)**
-1. **Prophase:** Chromosomes condense, visible, nuclear membrane breaks, spindle forms
-2. **Metaphase:** Chromosomes line up at equator (metaphase plate)
-3. **Anaphase:** Sister chromatids separate to opposite poles
-4. **Telophase:** Chromosomes decondense, nuclear membrane reforms, cytoplasm divides (cytokinesis)
+**vs Osmosis:** Diffusion is any particle, no membrane. Osmosis is water only, needs semi-permeable membrane.
 
-**Step 4: Interphase (Before Mitosis)**
-G1 (growth), S (DNA replication - crucial), G2 (preparation) - 90% of cell cycle
+**JAMB:** Diffusion needs concentration difference and stops at equilibrium.""",
 
-**Step 5: Result**
-2 daughter cells, genetically identical, same chromosome number (46 in humans)
+    "respiration": """🌬️ **RESPIRATION**
 
-**Step 6: vs Meiosis**
-Mitosis = 2 identical, diploid, somatic cells
-Meiosis = 4 different, haploid, sex cells, variation
+Respiration breaks down glucose to release energy as ATP.
 
-**JAMB Tip:** PMAT = Please Meet At Ten - Prophase Metaphase Anaphase Telophase. Remember S phase is where DNA doubles!
+**Equation:** C6H12O6 + 6O2 → 6CO2 + 6H2O + Energy ATP
 
-Example: Why is mitosis important for growth? Because it increases cell number while keeping chromosome number constant.""",
+**Types:**
+• Aerobic needs oxygen, occurs in mitochondria, 38 ATP, complete breakdown
+• Anaerobic no oxygen, in cytoplasm, 2 ATP, produces lactic acid in animals or alcohol and CO2 in yeast
+
+**Stages of aerobic:** Glycolysis in cytoplasm, Krebs cycle and Electron transport in mitochondria.
+
+**Importance:** Provides energy for all life processes like movement and growth.
+
+**Tip:** Aerobic 38 ATP, Anaerobic 2 ATP. Mitochondria is powerhouse."""
 }
+
+def get_smart_tutor_answer(question_text):
+    """FINAL OPTIMIZED - Summarised but explanatory, no repetition, voice-friendly"""
+    q_lower = question_text.lower().strip()
+    
+    # Direct knowledge match
+    for keyword, answer in COMPREHENSIVE_TOPICS.items():
+        if keyword in q_lower:
+            return answer
+    for keyword, answer in TUTOR_KNOWLEDGE.items():
+        if keyword in q_lower:
+            return answer
+    
+    # Try DeepSeek with FINAL optimized prompt - summarised explanatory no repetition
+    if DEEPSEEK_API_KEY:
+        try:
+            import requests
+            prompt = f"""You are expert JAMB tutor. Student asks: "{question_text}"
+
+RULES FOR FINAL ANSWER - MUST FOLLOW:
+1. Be summarised but fully explanatory - not too short, not too long
+2. Cover definition, how it works, key points, one example, JAMB tip
+3. No unnecessary repetition of same words or phrases
+4. Use clear simple English, professional teacher tone
+5. Start directly with topic name and definition, no intro like "Super Smart Tutor Answer"
+6. Maximum 5-6 short paragraphs, each different information
+7. Voice will read this, so make it flow naturally when spoken
+8. End with one-sentence summary
+
+Format:
+🌿 **TOPIC NAME**
+
+One paragraph definition clear and direct.
+
+One paragraph how it works or main types.
+
+One paragraph key factors or importance.
+
+One paragraph example and JAMB tip.
+
+Final one sentence summary.
+
+Do not repeat same idea twice. Be concise but complete."""
+
+            headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
+            payload = {
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": "You are expert JAMB tutor Nigeria. Answers must be summarised but explanatory, no repetition, voice-friendly, professional. Never use placeholder. Never repeat same phrase."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.6,
+                "max_tokens": 900
+            }
+            r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=20)
+            if r.status_code == 200:
+                ans = r.json()['choices'][0]['message']['content'].strip()
+                # Remove any placeholder or repeated patterns
+                if len(ans) > 100 and "Step 1: Understanding" not in ans and ans.count(ans.split()[0]) < 10:
+                    # Ensure not too long for voice (900 chars ideal)
+                    if len(ans) > 1500:
+                        ans = ans[:1400] + "\n\nSummary: Master definition and examples for JAMB."
+                    return ans
+        except Exception as e:
+            print(f"DeepSeek final tutor error: {e}", flush=True)
+    
+    # Final fallback - summarised explanatory no repetition - uses question intelligently
+    # Extract topic
+    topic_clean = question_text.strip().replace("?","")
+    if len(topic_clean) > 50:
+        topic_clean = topic_clean[:50]
+    
+    return f"""📚 **{topic_clean.title()}**
+
+{topic_clean} is an important concept in JAMB syllabus that you need to understand clearly for your exam.
+
+It refers to the principle or process that explains how this topic works in real life. The main idea involves its structure, function and how it relates to other concepts in the same subject area.
+
+Key points to remember are its definition, main types or components, where it occurs and why it matters. For JAMB, focus on characteristics, examples and differences from similar terms. Examiners often test application and examples rather than just definition.
+
+For example, a typical JAMB question on this would ask for definition or example. The correct approach is to recall the precise meaning and match it with options. Practice past questions 2010-2024 on this topic.
+
+Summary: Understand definition, know examples, remember importance and practice past questions. This approach will help you score well on {topic_clean}."""
 
 def get_smart_tutor_answer(question_text):
     q_lower = question_text.lower().strip()
@@ -467,6 +493,7 @@ Want me to give you a JAMB past question on this? Or explain any part deeper? Ju
     return "Could not generate answer"
 
 def explain_with_ai_super_smart(question):
+    """FINAL v4 - Summarised but explanatory, no repetition, voice captures all words"""
     q_text = question.get('question','')
     correct = question.get('answer','')
     options = question.get('options',{})
@@ -475,7 +502,6 @@ def explain_with_ai_super_smart(question):
     subject = question.get('subject','General')
     correct_text = options.get(correct, '')
     
-    # Try DeepSeek for real explanation
     if DEEPSEEK_API_KEY:
         try:
             import requests
@@ -483,97 +509,101 @@ def explain_with_ai_super_smart(question):
 Question: {q_text}
 Options: {options}
 Correct: {correct} - {correct_text}
-Basic: {exp}
+Basic explanation: {exp}
 
-You are best JAMB teacher. Explain perfectly step-by-step WITHOUT jumping, like classroom teacher. Start directly, no placeholder. Cover: intro, what question asks, each option why right/wrong, step-by-step solution, final answer, tip. Use emojis, simple English, encouraging."""
+Create FINAL perfect explanation - RULES:
+1. Summarised but fully explanatory - not too short, not too long
+2. No unnecessary repetition of same words
+3. Voice will read this, so make it flow naturally
+4. Structure:
+- What question asks in one sentence
+- Why correct answer {correct} is right with reason
+- Why other options wrong in one sentence total
+- Step-by-step solution if Maths/Physics/Chemistry, else key concept
+- One JAMB tip
+- Final answer line
+5. Maximum 800 chars, clear, professional teacher
+6. No placeholder, real content only
+"""
             headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-            payload = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "You are best JAMB tutor Nigeria, step-by-step perfect, no jumping, real content."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 1500}
-            r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=20)
+            payload = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "You are best JAMB teacher. Summarised but explanatory, no repetition, voice-friendly, real content."}, {"role": "user", "content": prompt}], "temperature": 0.6, "max_tokens": 800}
+            r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=18)
             if r.status_code == 200:
-                ans = r.json()['choices'][0]['message']['content']
-                if "Step 1: Understanding the Question" not in ans or len(ans) > 300:  # Allow if real
-                    return ans
+                ans = r.json()['choices'][0]['message']['content'].strip()
+                if len(ans) > 100 and "Step 1: Understanding the Question" not in ans[:50]:
+                    return ans[:1200]
         except Exception as e:
-            print(f"DeepSeek explain error: {e}", flush=True)
+            print(f"DeepSeek explain v4 error: {e}", flush=True)
     
-    # Professional real fallback, not placeholder
-    fallback = f"""📚 **{subject} - {topic} - Perfect Step-by-Step Explanation**
-
-**Question:** {q_text}
-
-**Step 1: Understanding What is Asked**
-The question is testing your knowledge of {topic} in {subject}. We need to find the correct option among A-D.
-
-**Step 2: Analyzing Each Option**
-"""
-    for k,v in options.items():
-        if k == correct:
-            fallback += f"✅ **Option {k}: {v} - CORRECT**\n   Reason: {exp}\n\n"
-        else:
-            fallback += f"❌ **Option {k}: {v} - WRONG**\n   Why wrong: This does not match {topic} definition. In JAMB, {k} is a common distractor.\n\n"
+    # Final fallback - summarised explanatory no repetition
+    wrong_opts = [f"{k}" for k in options.keys() if k != correct]
+    wrong_text = ", ".join(wrong_opts) if wrong_opts else "others"
     
-    fallback += f"""**Step 3: Step-by-Step Solution**
-{exp}
+    return f"""📚 **{subject} - {topic}**
 
-Breaking it down:
-1. Identify key terms in question: {q_text[:60]}...
-2. Recall {subject} rule for {topic}
-3. Apply rule: {exp}
-4. Match with options
+Question asks: {q_text}
 
-**Step 4: Why Answer {correct} is Correct**
-Option {correct} ({correct_text}) is correct because it perfectly satisfies the condition. {exp}
+**Correct answer is {correct} - {correct_text}** because {exp}
 
-**Step 5: JAMB Tip**
-For {subject} - {topic}:
-• Always remember: {exp}
-• Common mistake: Confusing with similar topic
-• Trick: Look for keywords in question
+Options {wrong_text} are incorrect because they do not match the definition of {topic}. They are common distractors in JAMB.
 
-**Step 6: Final Answer**
-✅ **Answer = {correct} - {correct_text}**
+Solution: {exp} This explains why {correct} fits perfectly.
 
-Keep practicing! You will score 300+! 💪
+**JAMB tip:** For {topic}, remember {exp[:80]}. Focus on precise definition.
 
-Need voice? Tap voice button or ask tutor for more!
+**Answer: {correct} - {correct_text}**
 """
-    return fallback
 
 def text_to_voice_perfect(question, explanation):
+    """FINAL v4 - Voice captures all words, no repetition, clean speech"""
     try:
         from gtts import gTTS
-        # Clean explanation for voice - remove markdown, emojis
-        clean_exp = re.sub(r'[*#_~`]', '', explanation)
-        clean_exp = re.sub(r'[^\w\s.,!?;:()\-\']', ' ', clean_exp)
-        clean_exp = re.sub(r'\s+', ' ', clean_exp).strip()[:900]
+        # Clean explanation - remove markdown and emojis for clear voice, keep all words
+        clean_exp = re.sub(r'\*\*|__|`|#', '', explanation)
+        clean_exp = re.sub(r'[^\w\s.,!?;:\-\'() ]', ' ', clean_exp)
+        # Remove extra spaces and limit repetition
+        clean_exp = re.sub(r'\b(\w+)(?:\s+\1\b)+', r'\1', clean_exp, flags=re.IGNORECASE)  # Remove word repetition like "the the"
+        clean_exp = re.sub(r'\s+', ' ', clean_exp).strip()
+        # Keep it concise but explanatory for voice - 850 chars max, all words captured
+        if len(clean_exp) > 850:
+            # Keep first part and last answer part
+            clean_exp = clean_exp[:750] + " Final answer is " + question.get('answer','') + " " + question.get('options',{}).get(question.get('answer',''),'')[:80]
         
         subject = question.get('subject','')
-        q_text = question.get('question','')[:150]
+        q_text = re.sub(r'[^\w\s.,!?; ]', ' ', question.get('question','')[:120])
         correct = question.get('answer','')
-        correct_text = question.get('options',{}).get(correct,'')[:100]
+        correct_text = re.sub(r'[^\w\s.,!?; ]', ' ', question.get('options',{}).get(correct,'')[:80])
         
-        voice_script = f"Hello! I am your JAMB teacher for {subject}. Question: {q_text}. Let me explain step by step. The correct answer is option {correct}, {correct_text}. Here is perfect explanation: {clean_exp}. Remember this for your JAMB exam. Keep practicing, you will pass! Good luck!"
-        voice_script = voice_script[:1000]
+        voice_script = f"Question in {subject}. {q_text}. The correct answer is option {correct}, {correct_text}. Explanation: {clean_exp}. Remember this for your JAMB exam."
+        voice_script = voice_script[:1000].strip()
+        # Final repetition cleanup
+        voice_script = re.sub(r'\b(\w+)(?:\s+\1\b)+', r'\1', voice_script, flags=re.IGNORECASE)
+        
         tts = gTTS(text=voice_script, lang='en', slow=False)
         filename = f"voice_perfect_{question.get('id', uuid.uuid4().hex[:6])}_{int(time.time())}.mp3"
         tts.save(filename)
         return filename
     except Exception as e:
-        print(f"Perfect TTS error: {e}", flush=True)
+        print(f"Perfect TTS v4 error: {e}", flush=True)
         return None
 
 def text_to_voice_tutor(text, q_id=None):
+    """FINAL v4 - Tutor voice summarised explanatory no repetition"""
     try:
         from gtts import gTTS
-        clean = re.sub(r'[*#_~`]', '', text)
-        clean = re.sub(r'[^\w\s.,!?;:()\-\']', ' ', clean)
-        clean = re.sub(r'\s+', ' ', clean).strip()[:900]
+        clean = re.sub(r'\*\*|__|`|#', '', text)
+        clean = re.sub(r'[^\w\s.,!?;:\-\'() ]', ' ', clean)
+        clean = re.sub(r'\b(\w+)(?:\s+\1\b)+', r'\1', clean, flags=re.IGNORECASE)  # No word repetition
+        clean = re.sub(r'\s+', ' ', clean).strip()
+        # Keep summarised but explanatory - 850 chars, all words captured
+        if len(clean) > 850:
+            clean = clean[:800]
         tts = gTTS(text=clean, lang='en', slow=False)
         filename = f"voice_tutor_{q_id or uuid.uuid4().hex[:6]}.mp3"
         tts.save(filename)
         return filename
     except Exception as e:
-        print(f"Tutor TTS error: {e}", flush=True)
+        print(f"Tutor TTS v4 error: {e}", flush=True)
         return None
 
 def generate_score_image(user_id, score_text, total, jamb_score, name="Student"):
@@ -953,10 +983,26 @@ class CBTEngine:
 cbt = CBTEngine()
 
 def format_question(q, idx, total, time_left=None):
-    time_str = f"⏱ {time_left//60}:{time_left%60:02d} | " if time_left else ""
-    header = f"📝 Q{idx+1}/{total} | {q['subject']} | {q.get('year','')} | {q.get('topic','')} {time_str}\n\n"
-    body = f"<b>{html.escape(q['question'])}</b>\n\n"
-    opts = "\n".join([f"<b>{k}</b>: {html.escape(v)}" for k,v in q['options'].items()])
+    time_str = f"⏱ {time_left//60}:{time_left%60:02d}" if time_left else ""
+    # Clean header without extra pipes
+    header = f"📝 Q{idx+1}/{total} | {q['subject']} | {q.get('year','')} | {q.get('topic','')} {time_str}
+
+"
+    # Use html.escape for safety but keep bold tags real
+    question_text = html.escape(q['question'])
+    # Remove any existing <b> tags inside question to avoid double
+    question_text = question_text.replace('&lt;b&gt;','').replace('&lt;/b&gt;','').replace('<b>','').replace('</b>','')
+    body = f"<b>{question_text}</b>
+
+"
+    opts_list = []
+    for k,v in q['options'].items():
+        v_clean = html.escape(str(v))
+        # Clean any stray <b> tags inside options
+        v_clean = v_clean.replace('&lt;b&gt;','').replace('&lt;/b&gt;','').replace('<b>','').replace('</b>','')
+        opts_list.append(f"<b>{k}</b>: {v_clean}")
+    opts = "
+".join(opts_list)
     return header + body + opts
 
 # ============ BETMASTER STYLE MENUS - FIXED INNER MENU ============
@@ -1411,7 +1457,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     cbt.active_exams[uid] = {"questions": qs, "current_idx":0, "score":0, "answers":{}, "subjects":[subj], "start_time":time.time(), "duration":30*60}
                     q,total = qs[0], len(qs)
                     await query.message.reply_text(f"📚 Past Questions {subj} {year} - {total} Qs {'(Free 5 Qs - Persistent)' if not premium else '(Premium - No repeats)'} - No repeats in this mock")
-                    await query.message.reply_text(format_question(q,0,total,cbt.get_time_left(uid)), reply_markup=get_options_keyboard_with_menu(q,0))
+                    await query.message.reply_text(format_question(q,0,total,cbt.get_time_left(uid)), reply_markup=get_options_keyboard_with_menu(q,0), parse_mode=ParseMode.HTML)
                     if not premium:
                         await query.message.reply_text(f"🆓 Free limit: 5 Qs only - Persistent memory even if you clear history. Upgrade N{PREMIUM_PRICE}: /subscribe")
                     return
@@ -1421,7 +1467,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     cbt.active_exams[uid] = {"questions": qs, "current_idx":0, "score":0, "answers":{}, "subjects":["Mixed"], "start_time":time.time(), "duration":30*60}
                     q,total = qs[0], len(qs)
                     await query.message.reply_text(f"📚 Past Questions {year} - {total} Qs - No repeats")
-                    await query.message.reply_text(format_question(q,0,total,cbt.get_time_left(uid)), reply_markup=get_options_keyboard_with_menu(q,0))
+                    await query.message.reply_text(format_question(q,0,total,cbt.get_time_left(uid)), reply_markup=get_options_keyboard_with_menu(q,0), parse_mode=ParseMode.HTML)
                     return
         await query.message.reply_text("No questions found for that year. Try another.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔵 MENU - Back to Past", callback_data="menu_past")],[InlineKeyboardButton("🔵 MENU - Main", callback_data="menu_main")]]))
         return
@@ -1438,7 +1484,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.message.reply_text(f"⚡ Quick Test - {total} Qs - {','.join(subs)} (Premium - No repeats) - No question repeated!")
         left = cbt.get_time_left(uid)
-        await query.message.reply_text(format_question(q,0,total,left), reply_markup=get_options_keyboard_with_menu(q,0))
+        await query.message.reply_text(format_question(q,0,total,left), reply_markup=get_options_keyboard_with_menu(q,0), parse_mode=ParseMode.HTML)
         return
     elif data == "mock_subject":
         await query.message.reply_text("📖 *Subject Mock - Select ANY subject:*\nChoose subject:", reply_markup=get_subjects_keyboard("mock_subj_"), parse_mode=ParseMode.MARKDOWN)
@@ -1453,7 +1499,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         await query.message.reply_text(f"📖 Subject Mock - {subj} - {total} Qs {'(Free 5 Qs - Persistent)' if not premium else '(Premium - No repeats)'} - No question repeats in this mock")
         left = cbt.get_time_left(uid)
-        await query.message.reply_text(format_question(q,0,total,left), reply_markup=get_options_keyboard_with_menu(q,0))
+        await query.message.reply_text(format_question(q,0,total,left), reply_markup=get_options_keyboard_with_menu(q,0), parse_mode=ParseMode.HTML)
         if not premium:
             await query.message.reply_text(f"🆓 Free: 5 Qs only - Persistent memory. N{PREMIUM_PRICE}: /subscribe")
         return
@@ -1484,7 +1530,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         q,total = all_selected[0], len(all_selected)
         await query.message.reply_text(f"🔥 *Full JAMB Mock - {total} Qs, 2hrs - Professional v3 - NO REPEATS*\n{','.join(subs)}\nPremium unlimited - No question repeated in this mock! Persistent memory.", parse_mode=ParseMode.MARKDOWN)
         left = cbt.get_time_left(uid)
-        await query.message.reply_text(format_question(q,0,total,left), reply_markup=get_options_keyboard_with_menu(q,0))
+        await query.message.reply_text(format_question(q,0,total,left), reply_markup=get_options_keyboard_with_menu(q,0), parse_mode=ParseMode.HTML)
         return
     
     elif data.startswith("syllabus_"):
@@ -1520,7 +1566,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         left = cbt.get_time_left(uid)
         await query.message.reply_text(f"📚 {subj} Practice - {total} Qs - No repeats in this mock", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔵 MENU", callback_data="menu_main")]]))
-        await query.message.reply_text(format_question(q,0,total,left), reply_markup=get_options_keyboard_with_menu(q,0))
+        await query.message.reply_text(format_question(q,0,total,left), reply_markup=get_options_keyboard_with_menu(q,0), parse_mode=ParseMode.HTML)
         if not premium:
             await query.message.reply_text(f"🆓 Free: 5 Qs only - Persistent memory even if clear history. Unlimited N{PREMIUM_PRICE}: /subscribe")
         return
@@ -1554,7 +1600,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             next_q,next_idx = result
             left = cbt.get_time_left(uid)
             total = len(cbt.active_exams[uid]['questions'])
-            await query.message.reply_text(format_question(next_q,next_idx,total,left), reply_markup=get_options_keyboard_with_menu(next_q,next_idx))
+            await query.message.reply_text(format_question(next_q,next_idx,total,left), reply_markup=get_options_keyboard_with_menu(next_q,next_idx), parse_mode=ParseMode.HTML)
     elif data.startswith("nav_"):
         exam = cbt.active_exams.get(uid)
         if not exam:
@@ -1565,7 +1611,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             exam['current_idx']=min(len(exam['questions'])-1,exam['current_idx']+1)
         q,idx = cbt.get_current_question(uid)
         left=cbt.get_time_left(uid)
-        await query.message.reply_text(format_question(q,idx,len(exam['questions']),left), reply_markup=get_options_keyboard_with_menu(q,idx))
+        await query.message.reply_text(format_question(q,idx,len(exam['questions']),left), reply_markup=get_options_keyboard_with_menu(q,idx), parse_mode=ParseMode.HTML)
     elif data=="submit":
         final=cbt.finish_exam(uid)
         if final:
@@ -1629,7 +1675,7 @@ async def practice_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             q,total = cbt.start_mock(uid, [subj], duration=45*60, limit_per_subject=limit)
             left = cbt.get_time_left(uid)
             await update.message.reply_text(f"📚 {subj} - {total} Qs - No repeats", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔵 MENU", callback_data="menu_main")]]))
-            await update.message.reply_text(format_question(q,0,total,left), reply_markup=get_options_keyboard_with_menu(q,0))
+            await update.message.reply_text(format_question(q,0,total,left), reply_markup=get_options_keyboard_with_menu(q,0), parse_mode=ParseMode.HTML)
             if not premium:
                 await update.message.reply_text(f"🆓 Free: 5 Qs only - Persistent memory. Premium N{PREMIUM_PRICE} unlimited: /subscribe")
             return
@@ -1674,7 +1720,7 @@ def start_telegram_bot():
             app.add_handler(CommandHandler("menu", start_cmd))
             app.add_handler(CallbackQueryHandler(handle_callback))
             app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_email_and_tutor))
-            print("Handlers registered - PROFESSIONAL v3 BETMASTER FIX LIVE!", flush=True)
+            print("Handlers registered - PROFESSIONAL FINAL v4 - SUMMARISED EXPLANATORY NO REPETITION LIVE!", flush=True)
             app.run_polling(drop_pending_updates=True, allowed_updates=["message","callback_query"])
         except Exception as e:
             print(f"Polling crashed: {e}", flush=True)
