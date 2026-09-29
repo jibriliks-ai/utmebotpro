@@ -18,3 +18,5 @@ services:
         value: 2000
       - key: DEEPSEEK_API_KEY
         sync: false
+      - key: RENDER_EXTERNAL_URL
+        value: https://utmebot.onrender.com
