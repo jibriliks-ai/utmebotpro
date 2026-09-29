@@ -640,50 +640,103 @@ UPGRADE_PAGE_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>UTME Success Bot - Upgrade</title>
+    <title>UTME Success Bot - Upgrade to Premium</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: Arial; background: linear-gradient(135deg, #1a2035, #2d3748); color: white; margin:0; padding:20px; min-height:100vh; }
-        .container { max-width:500px; margin:0 auto; background: rgba(255,255,255,0.1); padding:30px; border-radius:15px; }
-        h1 { text-align:center; color:#ffd700; }
-        .price { text-align:center; font-size:48px; color:#ffd700; font-weight:bold; margin:20px 0; }
-        .features { list-style:none; padding:0; }
-        .features li { padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.1); }
+        body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #1a2035, #2d3748); color: white; margin:0; padding:20px; min-height:100vh; }
+        .container { max-width:500px; margin:0 auto; background: rgba(255,255,255,0.1); padding:30px; border-radius:15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        h1 { text-align:center; color:#ffd700; margin-bottom:5px; }
+        h2 { text-align:center; color:#fff; font-size:16px; opacity:0.8; }
+        .price { text-align:center; font-size:52px; color:#ffd700; font-weight:bold; margin:20px 0; }
+        .features { list-style:none; padding:0; margin:20px 0; }
+        .features li { padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.1); font-size:15px; }
         .features li:before { content:"✅ "; }
-        .btn { display:block; width:100%; padding:15px; background:#ffd700; color:#1a2035; text-align:center; text-decoration:none; border-radius:10px; font-weight:bold; font-size:18px; margin:20px 0; }
-        .free-option { text-align:center; margin-top:20px; padding:15px; background: rgba(255,255,255,0.05); border-radius:10px; }
-        .logo { text-align:center; font-size:60px; }
+        .user-id-box { text-align:center; margin:20px 0; padding:15px; background: rgba(255,215,0,0.1); border-radius:10px; border: 1px solid rgba(255,215,0,0.3); }
+        .user-id-box p { margin:5px 0; font-size:18px; }
+        .btn { display:block; width:100%; padding:18px; background: linear-gradient(135deg, #ffd700, #ffed4e); color:#1a2035; text-align:center; text-decoration:none; border-radius:12px; font-weight:bold; font-size:20px; margin:25px 0; box-shadow: 0 4px 15px rgba(255,215,0,0.4); cursor:pointer; border:none; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,215,0,0.6); }
+        .btn:active { transform: translateY(0); }
+        .free-option { text-align:center; margin-top:25px; padding:18px; background: rgba(255,255,255,0.05); border-radius:12px; border: 1px dashed rgba(255,255,255,0.2); }
+        .logo { text-align:center; font-size:60px; margin-bottom:10px; }
+        .secure { text-align:center; margin-top:20px; font-size:12px; opacity:0.6; }
+        .error-box { background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.3); padding:15px; border-radius:10px; margin:15px 0; text-align:center; display:none; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">🎓</div>
         <h1>UTME Success Bot</h1>
-        <h2 style="text-align:center;">Upgrade to Premium - Professional v3</h2>
+        <h2>Upgrade to Premium - Professional Final v4</h2>
         <div class="price">N{{price}}</div>
-        <p style="text-align:center;">30 days unlimited - Super Smart Tutor + Perfect Voice</p>
+        <p style="text-align:center; opacity:0.8;">30 days unlimited access</p>
         <ul class="features">
-            <li>Unlimited mock 180 Qs full JAMB</li>
-            <li>All subjects + Past questions 2010-2024 by year</li>
-            <li>Super smart AI Tutor - real answers step-by-step</li>
-            <li>Perfect voice teacher - no jumping</li>
-            <li>Complete syllabus, My Score, Leaderboard</li>
-            <li>Blue menu handle, no repeat questions</li>
-            <li>Share score viral, priority support</li>
+            <li>Unlimited mock 180 Qs - No repeats - Real JAMB</li>
+            <li>All subjects + Past questions 2010-2024 any year</li>
+            <li>Super smart AI Tutor - summarised but explanatory</li>
+            <li>Perfect voice teacher - no jumping, no repetition</li>
+            <li>Complete syllabus + My Score + Leaderboard</li>
+            <li>Blue menu handle, persistent memory</li>
+            <li>Share score viral + priority support</li>
         </ul>
-        <div style="text-align:center; margin:20px 0;">
-            <p>👤 User ID: {{uid}}</p>
-            <p>📧 Email: {{email}}</p>
+        <div class="user-id-box">
+            <p>👤 <strong>User ID: {{uid}}</strong></p>
+            <p style="font-size:13px; opacity:0.7;">Keep this ID safe - your premium will be activated on this ID</p>
         </div>
-        <a href="{{payment_link}}" class="btn">💳 Pay N{{price}} Now - Flutterwave Secure</a>
+        
+        <div id="errorBox" class="error-box">
+            <p>⚠️ Payment link error. Please try again or contact @jibriliks</p>
+            <p id="errorDetails" style="font-size:12px;"></p>
+        </div>
+
+        <a id="payButton" href="{{payment_link}}" class="btn" onclick="return handlePayClick(this)">💳 Pay N{{price}} Now - Secure</a>
+        <p style="text-align:center; font-size:13px; opacity:0.7;">Clicking Pay will take you to Flutterwave secure payment page</p>
+        
         <div class="free-option">
-            <h3>🆓 Free Option</h3>
-            <p>Invite 3 friends = 1 WEEK PREMIUM FREE!</p>
-            <p>Link: <code>https://t.me/{{bot_username}}?start={{uid}}</code></p>
-            <p>Invited: {{referral_count}} friends</p>
+            <h3>🆓 Free Option - No Payment</h3>
+            <p>Invite 3 friends = <strong>1 WEEK PREMIUM FREE!</strong></p>
+            <p style="word-break: break-all; background: rgba(0,0,0,0.3); padding:10px; border-radius:8px; margin:10px 0;"><code>https://t.me/{{bot_username}}?start={{uid}}</code></p>
+            <p>✅ You have invited <strong>{{referral_count}}</strong> friends</p>
         </div>
-        <p style="text-align:center; margin-top:20px; font-size:12px; opacity:0.7;">Secure by Flutterwave<br>Contact @jibriliks</p>
+        <p class="secure">🔒 Secure payment by Flutterwave<br>💬 Need help? Contact @jibriliks on Telegram</p>
     </div>
+
+    <script>
+        function handlePayClick(btn) {
+            var link = btn.getAttribute('href');
+            // If link is still self page, try to create new link via /pay endpoint
+            if (link.includes('/upgrade/') && !link.includes('flutterwave') && !link.includes('checkout')) {
+                // Check if it's not already flutterwave link
+                if (link === window.location.href || link.endsWith('/{{uid}}') || link.includes('/upgrade/{{uid}}')) {
+                    // Redirect to /pay endpoint which will create flutterwave link
+                    window.location.href = '/pay/{{uid}}';
+                    return false;
+                }
+            }
+            // If link looks like flutterwave or checkout, allow it
+            if (link.includes('flutterwave') || link.includes('checkout') || link.includes('pay')) {
+                btn.innerHTML = '⏳ Redirecting to Flutterwave...';
+                return true;
+            }
+            // Fallback - try pay endpoint
+            window.location.href = '/pay/{{uid}}';
+            return false;
+        }
+        // Auto-check if payment_link failed
+        window.onload = function() {
+            var link = document.getElementById('payButton').getAttribute('href');
+            var errorBox = document.getElementById('errorBox');
+            // If link is same page, show hint
+            if (link === window.location.href) {
+                errorBox.style.display = 'block';
+                document.getElementById('errorDetails').innerText = 'Payment link not generated - will try alternative method';
+                // Auto redirect to pay endpoint after 1 sec
+                setTimeout(function() {
+                    document.getElementById('payButton').href = '/pay/{{uid}}';
+                    document.getElementById('payButton').innerHTML = '💳 Pay N{{price}} - Click Again';
+                }, 1000);
+            }
+        }
+    </script>
 </body>
 </html>
 """
@@ -734,26 +787,105 @@ def health():
 def upgrade_page(uid=None):
     uid = uid or request.args.get('uid', '0')
     uid = str(uid).strip().split("/")[0].split("?")[0][:20]
-    email = request.args.get('email', 'student@example.com')
+    # Auto-generate email based on user ID - no need to show email on page
+    email = request.args.get('email', '')
+    if not email or '@' not in email or 'example.com' in email:
+        email = f"user_{uid}@utmebot.com"
     bot_username = request.args.get('bot', 'UTMEBOT')
-    payment_link = f"{RENDER_URL}/upgrade/{uid}?email={email}"
+    
+    # Try to create Flutterwave link directly
+    payment_link = f"/pay/{uid}"  # Fallback to /pay endpoint which handles Flutterwave creation
     if uid and uid != '0':
         try:
             import re
             uid_int = int(re.sub(r'[^0-9]', '', uid) or '0')
             if uid_int and FLW_SECRET_KEY:
-                link, _ = create_flutterwave_link(uid_int, email=email, name="UTME Student")
-                if link:
+                link, tx_ref = create_flutterwave_link(uid_int, email=email, name=f"UTME User {uid}")
+                if link and 'flutterwave' in link.lower() or link and 'http' in link:
                     payment_link = link
-        except:
-            pass
+                    print(f"Created Flutterwave link for {uid}: {link[:50]}...", flush=True)
+                else:
+                    print(f"Flutterwave link creation failed for {uid}: {tx_ref}", flush=True)
+                    # Keep fallback to /pay/{uid} which will retry
+        except Exception as e:
+            print(f"Upgrade page link error for {uid}: {e}", flush=True)
+    
     try:
         clean_uid = int(re.sub(r'[^0-9]', '', str(uid)) or '0')
         referral_count = get_referral_count(clean_uid) if clean_uid else 0
     except:
         referral_count = 0
-    html_content = UPGRADE_PAGE_HTML.replace("{{price}}", str(PREMIUM_PRICE)).replace("{{uid}}", str(uid)).replace("{{email}}", email).replace("{{bot_username}}", bot_username).replace("{{payment_link}}", payment_link).replace("{{referral_count}}", str(referral_count))
+    
+    html_content = UPGRADE_PAGE_HTML.replace("{{price}}", str(PREMIUM_PRICE)).replace("{{uid}}", str(uid)).replace("{{bot_username}}", bot_username).replace("{{payment_link}}", payment_link).replace("{{referral_count}}", str(referral_count))
+    # Remove any leftover {{email}} if exists
+    html_content = html_content.replace("{{email}}", email)
     return render_template_string(html_content)
+
+@flask_app.route("/pay/<uid>")
+@flask_app.route("/pay/<uid>/")
+def pay_redirect(uid=None):
+    """Direct pay endpoint - creates Flutterwave link and redirects immediately - FIXES button not moving"""
+    uid = str(uid).strip().split("/")[0].split("?")[0][:20]
+    email = f"user_{uid}@utmebot.com"
+    bot_username = request.args.get('bot', 'UTMEBOT')
+    
+    print(f"Pay endpoint hit for uid={uid}", flush=True)
+    
+    if not FLW_SECRET_KEY:
+        return f"""
+        <html><body style="font-family:Arial; background:#1a2035; color:white; padding:20px; text-align:center;">
+        <h2>⚠️ Payment Configuration Error</h2>
+        <p>FLW_SECRET_KEY not set on server. Contact @jibriliks</p>
+        <p>User ID: {uid}</p>
+        <p><a href="/upgrade/{uid}" style="color:#ffd700;">Back to Upgrade Page</a></p>
+        </body></html>
+        """, 500
+    
+    try:
+        import re
+        uid_int = int(re.sub(r'[^0-9]', '', uid) or '0')
+        if not uid_int:
+            uid_int = int(time.time()) % 1000000
+        
+        link, tx_ref = create_flutterwave_link(uid_int, email=email, name=f"UTME User {uid}")
+        
+        if link:
+            print(f"Redirecting {uid} to Flutterwave: {link[:80]}...", flush=True)
+            # Direct redirect to Flutterwave
+            return f"""
+            <html><head><meta http-equiv="refresh" content="0; url={link}"></head>
+            <body style="font-family:Arial; background:#1a2035; color:white; padding:20px; text-align:center;">
+            <h2>⏳ Redirecting to Flutterwave Secure Payment...</h2>
+            <p>If not redirected, <a href="{link}" style="color:#ffd700; font-size:18px;">Click here to Pay N{PREMIUM_PRICE}</a></p>
+            <p>User ID: {uid} | Tx: {tx_ref}</p>
+            <script>window.location.href = "{link}";</script>
+            </body></html>
+            """
+        else:
+            print(f"Pay endpoint failed to create link for {uid}: {tx_ref}", flush=True)
+            return f"""
+            <html><body style="font-family:Arial; background:#1a2035; color:white; padding:20px; text-align:center;">
+            <h2>⚠️ Could not create payment link</h2>
+            <p>Error: {html.escape(str(tx_ref))}</p>
+            <p>User ID: {uid}</p>
+            <p>Please contact @jibriliks with your User ID</p>
+            <p><a href="/upgrade/{uid}" style="color:#ffd700;">Back</a></p>
+            </body></html>
+            """, 500
+            
+    except Exception as e:
+        print(f"Pay endpoint exception for {uid}: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return f"""
+        <html><body style="font-family:Arial; background:#1a2035; color:white; padding:20px; text-align:center;">
+        <h2>⚠️ Payment Error</h2>
+        <p>{html.escape(str(e))}</p>
+        <p>User ID: {uid}</p>
+        <p><a href="/upgrade/{uid}" style="color:#ffd700;">Back to Upgrade</a> | Contact @jibriliks</p>
+        </body></html>
+        """, 500
+
 
 @flask_app.route("/upgrade/success")
 def upgrade_success():
@@ -796,22 +928,57 @@ def flw_webhook():
         print(f"Webhook error: {e}")
     return jsonify({"status": "ignored"}), 200
 
-def create_flutterwave_link(uid, email="user@example.com", name="UTME Student"):
+def create_flutterwave_link(uid, email=None, name="UTME Student"):
+    """FINAL FIXED - Creates Flutterwave payment link - robust with auto email"""
     if not FLW_SECRET_KEY:
-        return None, "FLW_SECRET_KEY not set - Contact @jibriliks"
+        print("FLW_SECRET_KEY not set", flush=True)
+        return None, "FLW_SECRET_KEY not set - Contact @jibriliks to set it on Render"
+    
+    # Auto-generate valid email if not provided or example.com
+    if not email or '@' not in email or 'example.com' in email:
+        email = f"user_{uid}@gmail.com"
+    
     import requests
     tx_ref = f"utme-{uid}-{int(time.time())}-{uuid.uuid4().hex[:4]}"
     url = "https://api.flutterwave.com/v3/payments"
     headers = {"Authorization": f"Bearer {FLW_SECRET_KEY}", "Content-Type": "application/json"}
     redirect_url = f"{RENDER_URL}/upgrade/success?uid={uid}&tx_ref={tx_ref}"
-    payload = {"tx_ref": tx_ref, "amount": PREMIUM_PRICE, "currency": "NGN", "redirect_url": redirect_url, "payment_options": "card,banktransfer,ussd", "customer": {"email": email, "name": name}, "customizations": {"title": "UTME Success Bot Premium", "description": f"{PREMIUM_PRICE} NGN - 30 days unlimited"}, "meta": {"user_id": str(uid)}}
+    
+    # Ensure RENDER_URL is valid
+    if not RENDER_URL or "localhost" in RENDER_URL:
+        redirect_url = f"https://utmebot.onrender.com/upgrade/success?uid={uid}&tx_ref={tx_ref}"
+    
+    payload = {
+        "tx_ref": tx_ref, 
+        "amount": PREMIUM_PRICE, 
+        "currency": "NGN", 
+        "redirect_url": redirect_url, 
+        "payment_options": "card,banktransfer,ussd", 
+        "customer": {"email": email, "name": name[:50]}, 
+        "customizations": {"title": "UTME Success Bot Premium", "description": f"N{PREMIUM_PRICE} - 30 days unlimited access"}, 
+        "meta": {"user_id": str(uid), "source": "utme_bot"}
+    }
+    
     try:
-        r = requests.post(url, json=payload, headers=headers, timeout=15)
+        print(f"Creating Flutterwave payment: uid={uid} email={email} tx_ref={tx_ref} amount={PREMIUM_PRICE}", flush=True)
+        r = requests.post(url, json=payload, headers=headers, timeout=20)
+        print(f"Flutterwave response status: {r.status_code}", flush=True)
         data = r.json()
-        if data.get("status") == "success":
-            return data["data"]["link"], tx_ref
-        return None, str(data)
+        print(f"Flutterwave response: {str(data)[:300]}", flush=True)
+        
+        if data.get("status") == "success" and data.get("data", {}).get("link"):
+            link = data["data"]["link"]
+            print(f"✅ Flutterwave link created: {link[:80]}...", flush=True)
+            return link, tx_ref
+        else:
+            error_msg = data.get("message", str(data))
+            print(f"❌ Flutterwave failed: {error_msg}", flush=True)
+            return None, error_msg
+            
     except Exception as e:
+        print(f"❌ Flutterwave exception: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
         return None, str(e)
 
 def verify_by_tx_ref(tx_ref):
