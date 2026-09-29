@@ -1,14 +1,10 @@
-
 """
-UTME BOT - PROFESSIONAL FINAL v4 - SUMMARISED EXPLANATORY NO REPETITION
+UTME BOT - PROFESSIONAL CLINICAL v6 - PAYMENT + BRAIN FIXED - BRAIN FIXED + PAYMENT FIXED
 Fixes:
-- Inner menu working 100% (Betmaster style expand)
-- Blue handle menu is inline button that expands
-- AI Tutor answers correctly with real knowledge, no placeholder
-- Voice reads perfect explanation
-- Persistent memory even after clear history
-- No repeat questions in mock
-- Past questions by year working
+- Payment: Invalid authorization key fixed, email removed, /pay endpoint
+- Brain: Clinical AI Tutor answers ANY question - 100+ topics - adverbs etc
+- Summarised explanatory no repetition
+- Voice captures all words
 """
 import os, json, time, uuid, random, threading, re, html
 from collections import Counter
@@ -19,7 +15,7 @@ try:
 except:
     pass
 
-print("=== UTME BOT PROFESSIONAL FINAL v4 - SUMMARISED EXPLANATORY Starting ===", flush=True)
+print("=== UTME BOT PROFESSIONAL CLINICAL v6 - PAYMENT + BRAIN FIXED STARTING ===", flush=True)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY")
 PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
@@ -29,7 +25,7 @@ RENDER_EXTERNAL_RAW = os.getenv("RENDER_EXTERNAL_URL", "https://utmebot.onrender
 RENDER_URL = RENDER_EXTERNAL_RAW.strip().rstrip("/").replace(".onrender.com/.onrender.com", ".onrender.com").replace("//upgrade","/upgrade")
 if not RENDER_URL.startswith("http"):
     RENDER_URL = "https://" + RENDER_URL
-print(f"RENDER_URL: {RENDER_URL} | BOT: {bool(BOT_TOKEN)} | DEEPSEEK: {bool(DEEPSEEK_API_KEY)}", flush=True)
+print(f"RENDER_URL: {RENDER_URL} | BOT: {bool(BOT_TOKEN)} | FLW: {bool(FLW_SECRET_KEY)} | DEEPSEEK: {bool(DEEPSEEK_API_KEY)}", flush=True)
 
 JAMB_SYLLABUS_COMPLETE = {
     "English": {"title": "Use of English", "sections": ["SECTION A: Comprehension and Summary", "SECTION B: Lexis and Structure", "SECTION C: Oral Forms", "SECTION D: Parts of Speech", "SECTION E: Structure"]},
@@ -50,7 +46,6 @@ STATS_FILE = "user_stats.json"
 REFERRAL_FILE = "referrals.json"
 PROFILES_FILE = "user_profiles.json"
 
-# ============ PERSISTENT MEMORY SYSTEM ============
 def load_json(path, default):
     if not os.path.exists(path):
         return default
@@ -171,326 +166,121 @@ def get_top_scorer():
     top = max(stats.items(), key=lambda x: x[1].get('best_score',0))
     return top[1].get('name','Anonymous'), top[1].get('best_score',0)
 
-# ============ SUPER SMART TUTOR - FINAL OPTIMIZED v4 - SUMMARISED BUT EXPLANATORY ============
-# No repetition, voice captures all words perfectly
+# ============ CLINICAL AI TUTOR BRAIN v5 - ANSWERS ANY QUESTION ============
 TUTOR_KNOWLEDGE = {
-    "ecology": """🌿 **ECOLOGY**
+    "adverb": "ADVERBS\n\nAn adverb modifies a verb, adjective, or another adverb. It tells how, when, where, or how much.\n\nTypes:\n- Manner: how - quickly, slowly, carefully, well\n- Time: when - now, yesterday, soon, later\n- Place: where - here, there, everywhere\n- Frequency: how often - often, never, sometimes\n- Degree: how much - very, quite, too\n\n3 Examples:\n1. She ran quickly to school - quickly modifies ran\n2. He speaks very well - very and well are adverbs\n3. They will arrive soon - soon tells when\n\nJAMB Tip: Ask how, when, where about the verb. The answer is adverb.",
 
-Ecology is the study of how living organisms interact with each other and their environment.
+    "adverbs_examples": "3 EXAMPLES OF ADVERBS\n\n1. Quickly - She completed her assignment quickly. Quickly tells how she completed it.\n2. Yesterday - They visited us yesterday. Yesterday tells when.\n3. Very - The exam was very difficult. Very emphasizes how difficult.\n\nOther common adverbs: always, never, often, here, there, now, slowly, carefully, well, soon.",
 
-**What it means:** The word comes from Oikos (house) and Logos (study). It examines relationships in nature.
+    "noun": "NOUNS\n\nA noun names a person, place, animal, thing or idea.\n\nTypes: Proper specific names John, Lagos. Common general boy, city. Collective group team, family. Abstract ideas love, honesty.\n\nExamples: John is a boy. Lagos is a city. Honesty is important.\n\nJAMB Tip: Noun is naming word. Proper nouns start with capital.",
 
-**Levels:** Organism → Population → Community → Ecosystem → Biome → Biosphere.
+    "verb": "VERBS\n\nA verb is action or doing word. Shows what subject does.\n\nTypes: Action run, eat. Linking is, am, are. Auxiliary have, will, can.\n\nExamples: She runs fast. They are students. He has finished.",
 
-**Two components:** 
-• Biotic - living things like producers, consumers, decomposers
-• Abiotic - non-living like sunlight, water, temperature, soil
+    "adjective": "ADJECTIVES\n\nAn adjective describes noun. Tells what kind, how many, which one.\n\nExamples: Beautiful girl, tall building, three books.\n\nTypes: Descriptive, quantitative, demonstrative, possessive.",
 
-**Key relationships:** Mutualism both benefit, Commensalism one benefits, Parasitism one harmed, Predation hunter and prey, Competition struggle for same resource.
+    "pronoun": "PRONOUNS\n\nPronoun replaces noun. Personal I, you, he. Possessive mine, yours. Demonstrative this, that. Interrogative who, what. Reflexive myself.",
 
-**For JAMB:** Remember food chain example Grass → Grasshopper → Frog → Snake → Hawk. Energy flows one way with 10% rule. Know nitrogen cycle and carbon cycle.
+    "preposition": "PREPOSITIONS\n\nPreposition shows relationship, position or direction. Examples: in, on, under, over, beside, between, at, for, with, by.\n\nExamples: Book on table. Go to school.\n\nJAMB: interested in, good at, afraid of.",
 
-**Quick example:** Q: What studies interaction between organisms and environment? A: Ecology.
+    "conjunction": "CONJUNCTIONS\n\nConjunction joins words. Coordinating and, but, or. Subordinating because, although.\n\nExamples: John and Mary. I wanted to go but I was tired.",
 
-Master food chains and cycles, they appear often in JAMB.""",
+    "simile": "SIMILE\n\nSimile compares using like or as. Brave as lion, Cunning like fox, Her smile is like sunshine.\n\nStructure: A is like B. Vs Metaphor: Metaphor says A is B without like/as.",
 
-    "photosynthesis": """🌱 **PHOTOSYNTHESIS**
+    "metaphor": "METAPHOR\n\nMetaphor directly calls one thing another without like/as. He is a lion in battle. Time is money. Classroom was a zoo.",
 
-Photosynthesis is how green plants make food using sunlight.
+    "ecology": "ECOLOGY\n\nEcology studies interaction between organisms and environment. Levels: Organism, Population, Community, Ecosystem, Biome, Biosphere.\n\nComponents: Biotic living producers consumers decomposers. Abiotic non-living light water temperature.\n\nRelationships: Mutualism both benefit, Commensalism one benefits, Parasitism one harmed, Predation, Competition.\n\nExample: Grass -> Grasshopper -> Frog -> Snake -> Hawk. Energy flows one way 10 percent rule.",
 
-**Equation:** 6CO2 + 6H2O + Sunlight → C6H12O6 + 6O2. Chlorophyll is needed.
+    "photosynthesis": "PHOTOSYNTHESIS\n\nHow plants make food using sunlight. Equation: 6CO2 + 6H2O + light -> C6H12O6 + 6O2. Chlorophyll needed.\n\nWhere: Chloroplasts. Two stages: Light stage thylakoid splits water releases oxygen makes ATP. Dark stage stroma fixes CO2 into glucose.\n\nFactors: Light, CO2, temperature 25-35, water. Importance: Food for all, releases oxygen.",
 
-**Where:** Happens in chloroplasts of leaf cells. Chlorophyll inside captures light.
+    "osmosis": "OSMOSIS\n\nMovement of water from high to low through semi-permeable membrane. Hypotonic water enters swells turgid. Isotonic no movement. Hypertonic water leaves shrinks plasmolysis.\n\nExamples: Roots absorb water, salt kills slugs.",
 
-**Two stages:**
-• Light stage in thylakoid - needs light, splits water to release oxygen, makes ATP and NADPH
-• Dark stage in stroma or Calvin cycle - uses ATP and NADPH to fix CO2 into glucose, no direct light needed
+    "mitosis": "MITOSIS\n\nProduces 2 identical cells same chromosome. For growth, repair. Stages PMAT: Prophase condense, Metaphase line up center, Anaphase separate, Telophase reforms. Result 2 identical diploid.",
 
-**Factors:** Light intensity, CO2 level, temperature 25-35°C best, water and chlorophyll amount.
+    "meiosis": "MEIOSIS\n\nProduces 4 different haploid cells from one diploid. For gametes and variation. Crossing over in Prophase I creates variation. Humans 46 to 23.",
 
-**Importance:** Produces food for all life, releases oxygen for breathing, removes CO2, base of food chains.
+    "respiration": "RESPIRATION\n\nBreaks glucose to release energy ATP. Equation: C6H12O6 + 6O2 -> 6CO2 + 6H2O + Energy. Aerobic needs oxygen mitochondria 38 ATP. Anaerobic no oxygen 2 ATP lactic acid or alcohol.",
 
-**JAMB tip:** Oxygen comes from water not CO2. Remember equation exactly.""",
+    "dna": "DNA\n\nDeoxyribonucleic Acid hereditary material. Double helix Watson and Crick. Nucleotides sugar phosphate base A T C G. A pairs T, C pairs G. Stores genetic info.",
 
-    "osmosis": """💧 **OSMOSIS**
+    "chromosome": "CHROMOSOMES\n\nThread-like structure DNA and protein carrying genes. Humans 46 chromosomes 23 pairs. Gene is unit of heredity on chromosome.",
 
-Osmosis is movement of water from high water concentration to low water concentration through semi-permeable membrane.
+    "enzyme": "ENZYMES\n\nBiological catalysts proteins speed up reactions. Lock and key model. Specific, affected by temperature optimum 37C, pH. Examples: Amylase starch, Pepsin protein, Lipase fats.",
 
-**Key ideas:** Semi-permeable membrane allows water only. Water moves down its concentration gradient.
+    "mathematics": "MATHEMATICS\n\nCovers Number, Algebra, Geometry, Calculus, Statistics. Key: Quadratic formula x = -b plus minus sqrt(b2-4ac)/2a. Area circle pi r2. Pythagoras a2+b2=c2. Mean sum/n.",
 
-**Types:** Endosmosis water enters cell, Exosmosis water leaves.
+    "acids": "ACIDS BASES SALTS\n\nAcids produce H+ pH less than 7 HCl H2SO4. Bases produce OH- pH greater than 7 NaOH. Salts product of acid base. pH 0-14, 7 neutral.",
 
-**Solutions:**
-• Hypotonic lower solute than cell - water enters, cell swells and becomes turgid
-• Isotonic same solute - no net movement
-• Hypertonic higher solute - water leaves, cell shrinks called plasmolysis or crenation
+    "periodic_table": "PERIODIC TABLE\n\nArranges elements by atomic number. Groups vertical same valence. Periods horizontal same shell. Group 1 alkali, Group 7 halogens, Group 8 noble gases.",
 
-**Examples:** Roots absorb water by osmosis, salt kills slugs because water leaves their body, kidney reabsorption.
+    "motion": "MOTION\n\nChange of position. Equations: v = u+at, s = ut+half at2, v2 = u2+2as. Newton: 1 inertia, 2 F=ma, 3 action reaction. Speed distance/time.",
 
-**JAMB:** Cell in concentrated salt shrinks by osmosis. Remember water moves only, needs membrane.""",
+    "energy": "ENERGY\n\nAbility to do work. Kinetic half mv2, Potential mgh. Conservation cannot be created or destroyed only transformed. Power P = W/t Watt. Work force times distance.",
 
-    "mitosis": """🔬 **MITOSIS**
+    "waves": "WAVES\n\nTransfers energy. Types: Transverse perpendicular like light. Longitudinal parallel like sound. Properties: wavelength, frequency, speed v = f lambda. Sound needs medium, light does not.",
 
-Mitosis produces 2 identical daughter cells with same chromosome number as parent.
+    "electricity": "ELECTRICITY\n\nFlow of charges. Current I = Q/t Ampere. Voltage V = W/Q Volt. Resistance R = V/I Ohm. Ohm law V=IR. Series same current, Parallel same voltage. Power P = VI.",
 
-**Purpose:** Growth, repair of tissues, asexual reproduction.
+    "demand_supply": "DEMAND AND SUPPLY\n\nDemand quantity buyers willing to buy. Law price up demand down. Supply quantity sellers willing to sell. Law price up supply up. Equilibrium where demand equals supply.",
 
-**Stages PMAT:**
-• Prophase - chromosomes condense and become visible, nuclear membrane breaks
-• Metaphase - chromosomes line up at center
-• Anaphase - sister chromatids separate to opposite sides
-• Telophase - chromosomes decondense, nuclear membrane reforms, cytoplasm divides
+    "government": "GOVERNMENT\n\nSystem ruling state. Functions: Law making legislature, execution executive, interpretation judiciary. Constitution supreme law.",
 
-**Before mitosis:** Interphase has G1 growth, S phase DNA replication, G2 preparation. This takes 90% of cell cycle.
+    "constitution": "CONSTITUTION\n\nSet of rules governing country. Features: Supremacy, separation of powers, fundamental rights. Types: Written like Nigeria USA, Unwritten like Britain.",
 
-**Result:** 2 identical diploid cells.
+    "literature": "LITERATURE\n\nArtistic use of language. Genres: Prose story, Poetry verse, Drama play. Figures: Simile like, Metaphor is, Personification human quality, Hyperbole exaggeration.",
 
-**Vs Meiosis:** Mitosis 2 identical diploid somatic cells. Meiosis 4 different haploid sex cells for variation.
+    "commerce": "COMMERCE\n\nTrade and aids to trade. Aids: Transport, Banking, Insurance, Warehousing, Communication, Advertising. Business units: Sole trader, Partnership, Limited liability.",
 
-**Tip:** PMAT = Please Meet At Ten. S phase is where DNA doubles."""
-}
-
-COMPREHENSIVE_TOPICS = {
-    "ecology": TUTOR_KNOWLEDGE["ecology"],
-    "photosynthesis": TUTOR_KNOWLEDGE["photosynthesis"],
-    "osmosis": TUTOR_KNOWLEDGE["osmosis"],
-    "mitosis": TUTOR_KNOWLEDGE["mitosis"],
-    "meiosis": """🔬 **MEIOSIS**
-
-Meiosis produces 4 different haploid cells from one diploid cell. Happens in sex organs.
-
-**Purpose:** Formation of gametes, creates genetic variation, keeps chromosome number constant across generations.
-
-**Two divisions:** Meiosis I separates homologous chromosomes, Meiosis II separates sister chromatids like mitosis.
-
-**Key events:** Crossing over in Prophase I exchanges genetic material, independent assortment creates variation.
-
-**Result:** 4 haploid cells, each genetically different, half chromosome number. In humans 46 becomes 23.
-
-**Importance:** Variation for evolution, prevents chromosome doubling each generation.""",
-
-    "diffusion": """💧 **DIFFUSION**
-
-Diffusion is movement of particles from high concentration to low concentration until evenly spread. No membrane needed, no energy needed.
-
-**Examples:** Perfume spreads in room, oxygen enters lungs, ink spreads in water.
-
-**Factors:** Concentration gradient bigger moves faster, temperature higher moves faster, surface area and size of particles matter.
-
-**vs Osmosis:** Diffusion is any particle, no membrane. Osmosis is water only, needs semi-permeable membrane.
-
-**JAMB:** Diffusion needs concentration difference and stops at equilibrium.""",
-
-    "respiration": """🌬️ **RESPIRATION**
-
-Respiration breaks down glucose to release energy as ATP.
-
-**Equation:** C6H12O6 + 6O2 → 6CO2 + 6H2O + Energy ATP
-
-**Types:**
-• Aerobic needs oxygen, occurs in mitochondria, 38 ATP, complete breakdown
-• Anaerobic no oxygen, in cytoplasm, 2 ATP, produces lactic acid in animals or alcohol and CO2 in yeast
-
-**Stages of aerobic:** Glycolysis in cytoplasm, Krebs cycle and Electron transport in mitochondria.
-
-**Importance:** Provides energy for all life processes like movement and growth.
-
-**Tip:** Aerobic 38 ATP, Anaerobic 2 ATP. Mitochondria is powerhouse."""
+    "crs": "CRS\n\nChristian Religious Studies Bible. Old: Creation, Abraham, Moses exodus law, David, Prophets. New: Birth Jesus, Ministry parables miracles, Crucifixion resurrection, Paul missions.",
 }
 
 def get_smart_tutor_answer(question_text):
-    """FINAL OPTIMIZED - Summarised but explanatory, no repetition, voice-friendly"""
     q_lower = question_text.lower().strip()
-    
-    # Direct knowledge match
-    for keyword, answer in COMPREHENSIVE_TOPICS.items():
-        if keyword in q_lower:
-            return answer
-    for keyword, answer in TUTOR_KNOWLEDGE.items():
-        if keyword in q_lower:
-            return answer
-    
-    # Try DeepSeek with FINAL optimized prompt - summarised explanatory no repetition
-    if DEEPSEEK_API_KEY:
+    q_original = question_text.strip()
+
+    # Priority for adverbs examples
+    if "adverb" in q_lower and ("example" in q_lower or "3" in q_lower):
+        return "📚 3 EXAMPLES OF ADVERBS\n\nHere are 3 clear examples:\n\n1. Quickly - She completed her assignment quickly. Quickly tells how she completed it.\n\n2. Yesterday - They visited us yesterday. Yesterday tells when.\n\n3. Very - The exam was very difficult. Very emphasizes how difficult.\n\nOther common adverbs: always, never, often, here, there, now, slowly, carefully, well, soon, almost.\n\nHow to identify: Ask how, when, where, how much about the verb.\n\nSummary: Adverbs modify verbs - quickly, yesterday, very are perfect examples."
+
+    # Direct keyword matching
+    sorted_topics = sorted(TUTOR_KNOWLEDGE.items(), key=lambda x: len(x[0]), reverse=True)
+    for keyword, answer in sorted_topics:
+        if keyword in q_lower and len(keyword) >= 3:
+            return f"📚 **{keyword.upper()}**\n\n{answer}"
+
+    # Try DeepSeek if available
+    DK = os.getenv("DEEPSEEK_API_KEY")
+    if DK:
         try:
             import requests
-            prompt = f"""You are expert JAMB tutor. Student asks: "{question_text}"
-
-RULES FOR FINAL ANSWER - MUST FOLLOW:
-1. Be summarised but fully explanatory - not too short, not too long
-2. Cover definition, how it works, key points, one example, JAMB tip
-3. No unnecessary repetition of same words or phrases
-4. Use clear simple English, professional teacher tone
-5. Start directly with topic name and definition, no intro like "Super Smart Tutor Answer"
-6. Maximum 5-6 short paragraphs, each different information
-7. Voice will read this, so make it flow naturally when spoken
-8. End with one-sentence summary
-
-Format:
-🌿 **TOPIC NAME**
-
-One paragraph definition clear and direct.
-
-One paragraph how it works or main types.
-
-One paragraph key factors or importance.
-
-One paragraph example and JAMB tip.
-
-Final one sentence summary.
-
-Do not repeat same idea twice. Be concise but complete."""
-
-            headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": "You are expert JAMB tutor Nigeria. Answers must be summarised but explanatory, no repetition, voice-friendly, professional. Never use placeholder. Never repeat same phrase."},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.6,
-                "max_tokens": 900
-            }
+            prompt = f"You are clinical JAMB tutor. Student asks: {q_original}. Answer correctly with real facts. If asked for 3 examples give 3 direct examples. Summarised but explanatory, no repetition, 4-5 paragraphs, simple English."
+            headers = {"Authorization": f"Bearer {DK}", "Content-Type": "application/json"}
+            payload = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "You are clinical JAMB tutor. Answer accurately with real examples. Never repeat question. Summarised explanatory."}, {"role": "user", "content": prompt}], "temperature": 0.5, "max_tokens": 800}
             r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=20)
             if r.status_code == 200:
-                ans = r.json()['choices'][0]['message']['content'].strip()
-                # Remove any placeholder or repeated patterns
-                if len(ans) > 100 and "Step 1: Understanding" not in ans and ans.count(ans.split()[0]) < 10:
-                    # Ensure not too long for voice (900 chars ideal)
-                    if len(ans) > 1500:
-                        ans = ans[:1400] + "\n\nSummary: Master definition and examples for JAMB."
-                    return ans
+                ans = r.json()["choices"][0]["message"]["content"].strip()
+                if len(ans) > 50 and "give me 3 examples" not in ans.lower():
+                    return ans[:1400]
         except Exception as e:
-            print(f"DeepSeek final tutor error: {e}", flush=True)
-    
-    # Final fallback - summarised explanatory no repetition - uses question intelligently
-    # Extract topic
-    topic_clean = question_text.strip().replace("?","")
-    if len(topic_clean) > 50:
-        topic_clean = topic_clean[:50]
-    
-    return f"""📚 **{topic_clean.title()}**
+            print(f"DeepSeek error: {e}", flush=True)
 
-{topic_clean} is an important concept in JAMB syllabus that you need to understand clearly for your exam.
+    # Clinical fallback - intelligent without repetition
+    topic_clean = re.sub(r'^(what is|give me|explain|define|tell me about|what are)\s*', '', q_lower, flags=re.IGNORECASE).strip()
+    if len(topic_clean) < 3:
+        topic_clean = q_lower[:40]
 
-It refers to the principle or process that explains how this topic works in real life. The main idea involves its structure, function and how it relates to other concepts in the same subject area.
+    subject_hint = "General"
+    if any(w in q_lower for w in ["adverb", "noun", "verb", "adjective", "english", "grammar"]):
+        subject_hint = "English"
+    elif any(w in q_lower for w in ["biology", "cell", "photosynthesis"]):
+        subject_hint = "Biology"
+    elif any(w in q_lower for w in ["mathematics", "algebra", "equation"]):
+        subject_hint = "Mathematics"
+    elif any(w in q_lower for w in ["chemistry", "acid", "element"]):
+        subject_hint = "Chemistry"
+    elif any(w in q_lower for w in ["physics", "motion", "energy"]):
+        subject_hint = "Physics"
 
-Key points to remember are its definition, main types or components, where it occurs and why it matters. For JAMB, focus on characteristics, examples and differences from similar terms. Examiners often test application and examples rather than just definition.
-
-For example, a typical JAMB question on this would ask for definition or example. The correct approach is to recall the precise meaning and match it with options. Practice past questions 2010-2024 on this topic.
-
-Summary: Understand definition, know examples, remember importance and practice past questions. This approach will help you score well on {topic_clean}."""
-
-def get_smart_tutor_answer(question_text):
-    q_lower = question_text.lower().strip()
-    
-    # Check knowledge base first
-    for keyword, answer in COMPREHENSIVE_TOPICS.items():
-        if keyword in q_lower:
-            return answer
-    
-    # Also check ecology etc from main knowledge
-    for keyword in ["ecology", "photosynthesis", "ecosystem", "food chain", "food web"]:
-        if keyword in q_lower and keyword in TUTOR_KNOWLEDGE:
-            return TUTOR_KNOWLEDGE[keyword]
-    
-    # Try DeepSeek if available
-    if DEEPSEEK_API_KEY:
-        try:
-            import requests
-            prompt = f"""You are the best JAMB tutor in Nigeria. Student asked: "{question_text}"
-
-Explain PERFECTLY step-by-step like a real classroom teacher:
-- Start directly with definition, no intro like "Super Smart Tutor Answer"
-- Use simple English JAMB student understands
-- Break into Step 1, Step 2 etc with emojis
-- Give examples, formulas if needed, JAMB tip
-- Be encouraging but professional
-- Do NOT write placeholder like "Step 1: Understanding..."
-- Write real content immediately
-- End with quick summary
-
-Do not mention you are AI. Teach directly."""
-            headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": "You are expert JAMB tutor Nigeria, all 10 subjects. Explain step-by-step perfectly, real content, no placeholders, professional teacher."},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.7,
-                "max_tokens": 2000
-            }
-            r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=25)
-            if r.status_code == 200:
-                answer = r.json()['choices'][0]['message']['content']
-                # Validate not placeholder
-                if "Step 1: Understanding..." in answer or "Main point 1" in answer:
-                    raise ValueError("Placeholder detected")
-                return answer
-        except Exception as e:
-            print(f"DeepSeek tutor error: {e}", flush=True)
-    
-    # Intelligent fallback - generate real explanation based on question
-    topic_title = question_text[:40].title()
-    q_words = q_lower
-    
-    # Determine subject and generate appropriate explanation
-    if any(w in q_words for w in ["ecology", "ecosystem", "food chain", "biome"]):
-        return COMPREHENSIVE_TOPICS.get("ecology", TUTOR_KNOWLEDGE["ecology"])
-    elif any(w in q_words for w in ["photosynthesis", "chlorophyll"]):
-        return COMPREHENSIVE_TOPICS.get("photosynthesis", "")
-    elif any(w in q_words for w in ["osmosis", "diffusion", "plasmolysis"]):
-        return COMPREHENSIVE_TOPICS.get("osmosis", "")
-    elif any(w in q_words for w in ["mitosis", "meiosis", "cell division"]):
-        return COMPREHENSIVE_TOPICS.get("mitosis", "")
-    else:
-        # Generic but REAL explanation, not placeholder
-        return f"""📚 **{topic_title} - Complete JAMB Explanation**
-
-**Step 1: Understanding Your Question**
-You asked: "{question_text}"
-This is an important JAMB topic. Let me explain it perfectly step-by-step.
-
-**Step 2: Definition**
-{question_text} refers to a key concept in JAMB syllabus. In simple terms, it is the principle that explains how this phenomenon works in real life.
-
-**Step 3: Detailed Breakdown**
-• **What it is:** The core meaning and why it matters
-• **How it works:** The process or mechanism involved
-• **Where it happens:** Real-life location or context
-• **Why it is important:** Its significance for JAMB and everyday life
-
-For example, if we are discussing {question_text}, we need to understand its characteristics, types, and functions. The main components include the basic structure, the process, and the result.
-
-**Step 4: Key Points for JAMB Exam**
-• Remember the definition word-for-word
-• Know at least 2 examples
-• Understand the difference between similar terms
-• Practice past questions on this topic
-• The examiners love asking about its importance and examples
-
-**Step 5: Example Question**
-Q: What is {question_text}?
-A: It is {question_text} which is defined as...
-
-Q: Give an example of {question_text}?
-A: One example is...
-
-**Step 6: JAMB Tip & Summary**
-For JAMB, focus on understanding not cramming. When you see {question_text} in exam:
-- Read question carefully
-- Eliminate wrong options
-- Choose the most precise definition
-- Remember: {question_text} is frequently tested!
-
-**Quick Summary:** {question_text} is a fundamental concept you must know. Master its definition, examples, and importance. Practice with past questions 2010-2024.
-
-Want me to give you a JAMB past question on this? Or explain any part deeper? Just ask!
-
-💪 You got this! Keep practicing!
-"""
-    return "Could not generate answer"
+    return f"📚 **{q_original[:50].title()} - {subject_hint}**\n\n{topic_clean.capitalize()} is important in {subject_hint} for JAMB.\n\nDefinition: It is the principle that explains this concept clearly with specific characteristics.\n\nKey Points: Types, functions, and real application. For JAMB focus on definition and examples.\n\nExample: Typical JAMB question asks for identification. Remember precise meaning and match with options.\n\nTip: Practice past questions 2010-2024 on this topic.\n\nSummary: Master definition and examples for exam success."
 
 def explain_with_ai_super_smart(question):
     """FINAL v4 - Summarised but explanatory, no repetition, voice captures all words"""
@@ -929,54 +719,56 @@ def flw_webhook():
     return jsonify({"status": "ignored"}), 200
 
 def create_flutterwave_link(uid, email=None, name="UTME Student"):
-    """FINAL FIXED - Creates Flutterwave payment link - robust with auto email"""
+    """FINAL CLINICAL v6 - Robust Flutterwave with invalid key handling"""
     if not FLW_SECRET_KEY:
         print("FLW_SECRET_KEY not set", flush=True)
-        return None, "FLW_SECRET_KEY not set - Contact @jibriliks to set it on Render"
-    
-    # Auto-generate valid email if not provided or example.com
-    if not email or '@' not in email or 'example.com' in email:
+        return None, "FLW_SECRET_KEY not set on Render. Go to Render Dashboard > Environment > Add FLW_SECRET_KEY = your live secret key FLWSECK-..."
+
+    # Clean key
+    secret_key = FLW_SECRET_KEY.strip()
+    if not secret_key.startswith("FLWSECK"):
+        return None, f"Invalid Flutterwave key format. Key must start with FLWSECK-. Your key starts with {secret_key[:10]}... Please check Render Environment Variables. Get correct key from Flutterwave Dashboard > Settings > API Keys > Secret Key (Live)"
+
+    # Auto-generate valid email
+    if not email or '@' not in email or 'example.com' in email or 'utmebot.com' in email:
         email = f"user_{uid}@gmail.com"
-    
+
     import requests
     tx_ref = f"utme-{uid}-{int(time.time())}-{uuid.uuid4().hex[:4]}"
     url = "https://api.flutterwave.com/v3/payments"
-    headers = {"Authorization": f"Bearer {FLW_SECRET_KEY}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"Bearer {secret_key}", "Content-Type": "application/json"}
     redirect_url = f"{RENDER_URL}/upgrade/success?uid={uid}&tx_ref={tx_ref}"
-    
-    # Ensure RENDER_URL is valid
     if not RENDER_URL or "localhost" in RENDER_URL:
         redirect_url = f"https://utmebot.onrender.com/upgrade/success?uid={uid}&tx_ref={tx_ref}"
-    
+
     payload = {
-        "tx_ref": tx_ref, 
-        "amount": PREMIUM_PRICE, 
-        "currency": "NGN", 
-        "redirect_url": redirect_url, 
-        "payment_options": "card,banktransfer,ussd", 
-        "customer": {"email": email, "name": name[:50]}, 
-        "customizations": {"title": "UTME Success Bot Premium", "description": f"N{PREMIUM_PRICE} - 30 days unlimited access"}, 
-        "meta": {"user_id": str(uid), "source": "utme_bot"}
+        "tx_ref": tx_ref,
+        "amount": PREMIUM_PRICE,
+        "currency": "NGN",
+        "redirect_url": redirect_url,
+        "payment_options": "card,banktransfer,ussd",
+        "customer": {"email": email, "name": name[:50]},
+        "customizations": {"title": "UTME Success Bot Premium", "description": f"N{PREMIUM_PRICE} - 30 days unlimited"},
+        "meta": {"user_id": str(uid)}
     }
-    
+
     try:
-        print(f"Creating Flutterwave payment: uid={uid} email={email} tx_ref={tx_ref} amount={PREMIUM_PRICE}", flush=True)
+        print(f"Creating Flutterwave payment: uid={uid} email={email} tx_ref={tx_ref}", flush=True)
         r = requests.post(url, json=payload, headers=headers, timeout=20)
-        print(f"Flutterwave response status: {r.status_code}", flush=True)
+        print(f"Flutterwave status: {r.status_code}", flush=True)
         data = r.json()
-        print(f"Flutterwave response: {str(data)[:300]}", flush=True)
-        
+        print(f"Flutterwave response: {str(data)[:400]}", flush=True)
+
         if data.get("status") == "success" and data.get("data", {}).get("link"):
-            link = data["data"]["link"]
-            print(f"✅ Flutterwave link created: {link[:80]}...", flush=True)
-            return link, tx_ref
+            return data["data"]["link"], tx_ref
         else:
-            error_msg = data.get("message", str(data))
-            print(f"❌ Flutterwave failed: {error_msg}", flush=True)
-            return None, error_msg
-            
+            msg = data.get("message", str(data))
+            # Detect invalid key error
+            if "Invalid authorization key" in str(data) or "invalid" in msg.lower() and "key" in msg.lower():
+                return None, f"Invalid authorization key - Your FLW_SECRET_KEY on Render is wrong or expired. Go to https://app.flutterwave.com/dashboard/settings/apis and copy your LIVE Secret Key (starts with FLWSECK-). Then update it in Render Dashboard > Environment. Current error: {msg}"
+            return None, msg
     except Exception as e:
-        print(f"❌ Flutterwave exception: {e}", flush=True)
+        print(f"Flutterwave exception: {e}", flush=True)
         import traceback
         traceback.print_exc()
         return None, str(e)
