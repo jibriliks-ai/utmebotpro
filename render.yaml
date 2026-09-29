@@ -12,8 +12,6 @@ services:
         sync: false
       - key: FLW_SECRET_KEY
         sync: false
-      - key: FLW_SECRET_HASH
-        value: utmebot12345
       - key: PREMIUM_PRICE
         value: 2000
       - key: DEEPSEEK_API_KEY
