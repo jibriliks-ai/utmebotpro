@@ -1,6 +1,1 @@
-flask==3.0.0
-python-dotenv==1.0.0
-python-telegram-bot==21.6
-requests==2.32.3
-gTTS==2.5.1
-Pillow==10.4.0
+flask==3.0.0\npython-dotenv==1.0.0\npython-telegram-bot==21.6\nrequests==2.32.3\ngTTS==2.5.1\nPillow==10.4.0\n
