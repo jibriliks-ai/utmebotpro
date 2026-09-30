@@ -20,9 +20,7 @@ services:
         value: https://utmebot.onrender.com
       - key: CHANNEL_ID
         sync: false
-      - key: CHANNEL_LINK
-        value: https://t.me/+Qw3DqGwCSM4wMDk0
       - key: BOT_USERNAME_LINK
         value: "@UTMESuccessBot"
-      - key: POST_SECRET
-        value: utme123
+      - key: BOT_USERNAME
+        value: UTMESuccessBot
