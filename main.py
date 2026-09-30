@@ -13,7 +13,7 @@ import threading
 import re
 import html
 import asyncio
-from collections import Counter
+from flask import Flask, request, jsonify, render_template_string, redirect
 
 try:
     from dotenv import load_dotenv
@@ -235,8 +235,8 @@ def get_top_scorer():
     full_users = {k: v for k, v in stats.items() if v.get('full_count', 0) > 0}
     if not full_users:
         return None, 0
-    top = max(full_users.items(), key=lambda x: x[1].get('best_score', 0))
-    return top[1].get('name', 'Anonymous'), top[1].get('best_score', 0)
+    top = max(full_users.items(), key=lambda x: x.get('best_score', 0))
+    return top.get('name', 'Anonymous'), top.get('best_score', 0)
 
 def get_user_stats(uid):
     return load_json(STATS_FILE, {}).get(str(uid))
