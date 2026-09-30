@@ -1,8 +1,8 @@
 """
-UTME SUCCESS BOT - v12 PRODUCTION PERFECT Build
-- Fixed background worker asyncio thread event loops
-- Fixed horizontal button array inline layouts
-- Clean fallback mechanics for freemium limits and premium tiers
+UTME SUCCESS BOT - v12 FIXED PRODUCTION PRO
+- Clean abstract event loop isolation for background polling
+- Fixed horizontal inline matrix array button loops
+- Multi-part JSON fragment loading framework support 
 """
 
 import os
@@ -21,7 +21,7 @@ try:
 except ImportError:
     pass
 
-print("=== UTME Bot v12 PRODUCTION MASTER ENGINE ===")
+print("=== UTME Bot v12 FIXED PRODUCTION PRO ===")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY", "").strip()
 FLW_PUBLIC_KEY = os.getenv("FLW_PUBLIC_KEY", "").strip()
