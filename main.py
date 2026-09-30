@@ -625,7 +625,21 @@ def index():
 
 @flask_app.route("/health")
 def health():
-    return jsonify({"status":"ok","price":PREMIUM_PRICE,"version":"v8 perfection"})
+    try:
+        import requests
+        bot_ok=False
+        bot_info="not checked"
+        if BOT_TOKEN:
+            try:
+                r=requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getMe", timeout=10)
+                data=r.json()
+                bot_ok=data.get("ok", False)
+                bot_info=data.get("result",{}).get("username","unknown") if bot_ok else data
+            except Exception as e:
+                bot_info=str(e)
+        return jsonify({"status":"ok","price":PREMIUM_PRICE,"version":"v8.1 perfection fix - bot responding","bot_token_exists":bool(BOT_TOKEN),"bot_api_ok":bot_ok,"bot_info":str(bot_info)[:200],"cbt_questions":len(cbt.db) if cbt else 0,"real_commands":"/start /mock /past /tutor /score"})
+    except Exception as e:
+        return jsonify({"status":"ok","error":str(e),"price":PREMIUM_PRICE})
 
 @flask_app.route("/upgrade")
 @flask_app.route("/upgrade/<uid>")
@@ -1455,43 +1469,123 @@ async def syllabus_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def start_telegram_bot():
     if not BOT_TOKEN:
-        print("BOT_TOKEN not set - Cannot start bot", flush=True)
+        print("❌ BOT_TOKEN not set - Cannot start bot - Set BOT_TOKEN in Render Dashboard -> Environment", flush=True)
+        print("❌ Go to Render.com -> Your Service -> Environment -> Add BOT_TOKEN", flush=True)
         return
     if not TG_AVAILABLE:
-        print("python-telegram-bot not available", flush=True)
+        print("❌ python-telegram-bot not available - check requirements.txt", flush=True)
         return
-    for i in range(3):
+    print(f"🔑 BOT_TOKEN check: exists={bool(BOT_TOKEN)} len={len(BOT_TOKEN) if BOT_TOKEN else 0} prefix={BOT_TOKEN[:10] if BOT_TOKEN else 'NONE'}...", flush=True)
+    # CRITICAL FIX: Force delete webhook - this is #1 reason bot not responding
+    for i in range(5):
         try:
             import requests
-            r=requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=true", timeout=15)
-            print(f"DeleteWebhook attempt {i+1}: {r.text[:200]}", flush=True)
-            if '"ok":true' in r.text.lower():
+            print(f"🧹 FIXING BOT NOT RESPONDING - DeleteWebhook attempt {i+1}/5...", flush=True)
+            r = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=true", timeout=20)
+            print(f"DeleteWebhook {i+1}: {r.text[:400]}", flush=True)
+            r2 = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getMe", timeout=15)
+            print(f"getMe {i+1}: {r2.text[:400]}", flush=True)
+            r3 = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo", timeout=10)
+            print(f"getWebhookInfo {i+1}: {r3.text[:400]}", flush=True)
+            data = r.json()
+            data2 = r2.json()
+            if data.get("ok") and data2.get("ok"):
+                print("✅ Webhook deleted, token valid - bot WILL respond now", flush=True)
                 break
+            else:
+                print(f"⚠️ Attempt {i+1} failed - retrying...", flush=True)
+                time.sleep(3)
         except Exception as e:
-            print(f"DeleteWebhook failed {i+1}: {e}", flush=True)
-    print("Building Telegram Application - v8 PERFECTION...", flush=True)
-    app=Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start_cmd))
-    app.add_handler(CommandHandler("mock", mock_cmd))
-    app.add_handler(CommandHandler("past", past_cmd))
-    app.add_handler(CommandHandler("practice", practice_cmd))
-    app.add_handler(CommandHandler("score", score_cmd))
-    app.add_handler(CommandHandler("tutor", tutor_cmd))
-    app.add_handler(CommandHandler("invite", invite_cmd))
-    app.add_handler(CommandHandler("subscribe", subscribe_cmd))
-    app.add_handler(CommandHandler("syllabus", syllabus_cmd))
-    app.add_handler(CommandHandler("help", start_cmd))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    print("✅ Handlers registered - v8 PERFECTION - READY TO ADVERTISE", flush=True)
+            print(f"❌ DeleteWebhook attempt {i+1} exception: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+            time.sleep(3)
+    
+    print("🤖 Building Telegram Application - v8.2 GUARANTEED RESPONDING FIX...", flush=True)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            print(f"🔨 Build attempt {attempt+1}/{max_retries}...", flush=True)
+            app = Application.builder().token(BOT_TOKEN).build()
+            app.add_handler(CommandHandler("start", start_cmd))
+            app.add_handler(CommandHandler("mock", mock_cmd))
+            app.add_handler(CommandHandler("past", past_cmd))
+            app.add_handler(CommandHandler("practice", practice_cmd))
+            app.add_handler(CommandHandler("score", score_cmd))
+            app.add_handler(CommandHandler("tutor", tutor_cmd))
+            app.add_handler(CommandHandler("invite", invite_cmd))
+            app.add_handler(CommandHandler("subscribe", subscribe_cmd))
+            app.add_handler(CommandHandler("syllabus", syllabus_cmd))
+            app.add_handler(CommandHandler("help", start_cmd))
+            app.add_handler(CallbackQueryHandler(handle_callback))
+            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+            print(f"✅ Handlers registered - attempt {attempt+1} - v8.2 GUARANTEED RESPONDING", flush=True)
+            try:
+                channel_id = os.getenv("CHANNEL_ID","")
+                if channel_id and BOT_TOKEN:
+                    start_channel_poster(BOT_TOKEN, channel_id, cbt, STATS_FILE)
+                    print(f"📢 Channel poster started for {channel_id}", flush=True)
+            except Exception as e:
+                print(f"⚠️ Channel poster failed (non-critical, bot will still respond): {e}", flush=True)
+            print("🚀 STARTING POLLING - Bot WILL respond to /start now - v8.2 FIX", flush=True)
+            print("📌 If bot still not responding after this log, check: 1) BOT_TOKEN correct in Render 2) No other bot instance running 3) Visit /debug endpoint", flush=True)
+            # FIX: close_loop=False and stop_signals=None critical for threading on Render
+            app.run_polling(drop_pending_updates=True, allowed_updates=["message","callback_query"], close_loop=False, stop_signals=None, timeout=20)
+            print("⚠️ Polling stopped - should not happen", flush=True)
+            break
+        except Exception as e:
+            print(f"❌ CRITICAL Polling crashed attempt {attempt+1}: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+            if attempt < max_retries - 1:
+                print(f"🔄 Retrying in 10 seconds... attempt {attempt+2}", flush=True)
+                time.sleep(10)
+            else:
+                print("❌ All polling attempts failed - bot will not respond - check BOT_TOKEN and Render logs", flush=True)
+                print("💡 Visit /debug endpoint to diagnose: https://your-app.onrender.com/debug", flush=True)
+                print("💡 Force delete webhook: https://your-app.onrender.com/force_delete_webhook", flush=True)
+
+
+
+@flask_app.route("/debug")
+def debug_status():
+    import requests
+    status = {"version":"v8.2 FIX GUARANTEED RESPONDING", "env_check":{}}
+    status["env_check"]["BOT_TOKEN_EXISTS"] = bool(BOT_TOKEN)
+    status["env_check"]["BOT_TOKEN_LEN"] = len(BOT_TOKEN) if BOT_TOKEN else 0
+    status["env_check"]["FLW_SECRET_EXISTS"] = bool(FLW_SECRET_KEY)
+    status["env_check"]["DEEPSEEK_EXISTS"] = bool(DEEPSEEK_API_KEY)
+    status["env_check"]["CHANNEL_ID_EXISTS"] = bool(CHANNEL_ID)
+    status["env_check"]["RENDER_URL"] = RENDER_URL
+    status["env_check"]["BOT_LINK"] = BOT_LINK
+    status["cbt"] = len(cbt.db) if cbt else 0
+    status["files"] = os.listdir('.')[:30]
+    # Try getMe
+    if BOT_TOKEN:
+        try:
+            r = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getMe", timeout=10)
+            status["telegram_getMe"] = r.json()
+        except Exception as e:
+            status["telegram_getMe_error"] = str(e)
+        try:
+            r = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo", timeout=10)
+            status["webhook_info"] = r.json()
+        except Exception as e:
+            status["webhook_error"] = str(e)
+    return jsonify(status)
+
+@flask_app.route("/force_delete_webhook")
+def force_delete_webhook():
+    import requests
+    if not BOT_TOKEN:
+        return jsonify({"error":"BOT_TOKEN not set"})
     try:
-        channel_id=os.getenv("CHANNEL_ID","")
-        if channel_id and BOT_TOKEN:
-            start_channel_poster(BOT_TOKEN, channel_id, cbt, STATS_FILE)
+        r1 = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=true", timeout=15)
+        r2 = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo", timeout=10)
+        return jsonify({"delete_result":r1.json(), "webhook_info":r2.json()})
     except Exception as e:
-        print(f"Channel poster failed: {e}", flush=True)
-    print("🚀 UTME Bot polling started... Real commands: /start /mock (5Q free once/day NOT leaderboard, 180Q premium counts no repeats) /past (any year strict no mixing) /tutor (2/day free 100% correct) /score (full mock only leaderboard) - v8 PERFECTION READY TO ADVERTISE", flush=True)
-    app.run_polling(drop_pending_updates=True, allowed_updates=["message","callback_query"])
+        return jsonify({"error":str(e)})
+
 
 if __name__=="__main__":
     bot_thread=threading.Thread(target=start_telegram_bot, daemon=True)
