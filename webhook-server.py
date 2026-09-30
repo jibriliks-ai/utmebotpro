@@ -46,7 +46,7 @@ UPGRADE_PAGE_HTML = """
     <div class="container">
         <div class="logo">🎓</div>
         <h1>UTME Success Bot</h1>
-        <h2 style="text-align:center;">Upgrade to Premium - Fully Upgraded Professional</h2>
+        <h2 style="text-align:center;">Upgrade to Premium</h2>
         <div class="price">N{{price}}</div>
         <p style="text-align:center;">30 days unlimited access</p>
         <ul class="features">
@@ -105,7 +105,7 @@ SUCCESS_PAGE_HTML = """
 
 @app.route("/")
 def home():
-    return jsonify({"status": "UTME Bot FULLY UPGRADED PROFESSIONAL LIVE", "upgrade_page": f"{RENDER_URL}/upgrade", "upgrade_with_id": f"{RENDER_URL}/upgrade/12345", "health": "/health", "features": ["Past Qs by Year", "Mock Exam", "Voice Teacher Perfect", "Syllabus Complete", "Super Smart Tutor", "Blue Menu Handle", "Upgrade via Flutterwave"]})
+    return jsonify({"status": "UTME Bot Live", "upgrade_page": f"{RENDER_URL}/upgrade", "upgrade_with_id": f"{RENDER_URL}/upgrade/12345", "health": "/health", "features": ["Past Qs by Year", "Mock Exam", "Voice Teacher Perfect", "Syllabus Complete", "Super Smart Tutor", "Blue Menu Handle", "Upgrade via Flutterwave"]})
 
 @app.route("/health")
 def health():
@@ -128,7 +128,7 @@ def health():
         if q_count < 100:
             q_count = 50000
         bt = os.getenv("BOT_TOKEN")
-        return jsonify({"status": "ok", "bot": "UTME Fully Upgraded Professional v2", "questions": q_count, "subjects": subj_counts, "premium_price": PREMIUM_PRICE, "upgrade_page": f"{RENDER_URL}/upgrade", "upgrade_example": f"{RENDER_URL}/upgrade/12345", "bot_token_exists": bool(bt)})
+        return jsonify({"status": "ok", "bot": "UTME Bot v9 Clean", "questions": q_count, "subjects": subj_counts, "premium_price": PREMIUM_PRICE, "upgrade_page": f"{RENDER_URL}/upgrade", "upgrade_example": f"{RENDER_URL}/upgrade/12345", "bot_token_exists": bool(bt)})
     except Exception as e:
         return jsonify({"status":"ok", "questions":50000, "error": str(e), "upgrade_page": f"{RENDER_URL}/upgrade"})
 
