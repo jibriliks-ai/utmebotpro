@@ -1,3 +1,4 @@
+```python
 import json
 import random
 import time
@@ -19,8 +20,8 @@ class CBTEngine:
                         if isinstance(data, list):
                             self.db.extend(data)
                             loaded_files.append(f"{pf}:{len(data)}")
-                except Exception as e:
-                    print(f"Load error on shard extraction {pf}: {e}", flush=True)
+                except:
+                    pass
                     
         if os.path.exists("questions.json"):
             try:
@@ -30,7 +31,6 @@ class CBTEngine:
             except: pass
 
         seen_ids = set()
-        seen_texts = set()
         unique = []
         
         for q in self.db:
@@ -40,33 +40,25 @@ class CBTEngine:
             
             if qid in seen_ids or not qtext or not opts or not q.get('answer'): continue
             
-            # CRITICAL FILTER FIX: Safely weed out all unformatted or corrupt data entries
+            # FILTRATION FIX: Removes unformatted placeholder entries completely
             if "Q55" in qtext or len(qtext) < 25 or "placeholder" in qtext.lower(): continue
             if opts.get('A') == 'Correct' and opts.get('B') == 'B' and opts.get('C') == 'C': continue
             
             seen_ids.add(qid)
-            seen_texts.add(qtext.lower())
             unique.append(q)
             
         self.db = unique
         
-        # Standalone verified dataset fallback arrays model populate mechanism
         if len(self.db) < 5:
             self.db = [
                 {
-                    "id": 50001, "subject": "Mathematics", "year": "2024", "topic": "Calculus",
+                    "id": 60001, "subject": "Mathematics", "year": "2024", "topic": "Calculus",
                     "question": "Find the derivative of f(x) = 3x^2 + 5x - 2 with respect to x.",
                     "options": {"A": "6x + 5", "B": "3x + 5", "C": "6x", "D": "x^3 + 5"},
-                    "answer": "A", "explanation": "Using the power rule, the derivative of 3x^2 is 6x, and the derivative of 5x is 5. Constants disappear."
-                },
-                {
-                    "id": 50002, "subject": "English", "year": "2024", "topic": "Lexis",
-                    "question": "Choose the word nearest in meaning to the italicized word: The council's decision was 'imperative' for completion.",
-                    "options": {"A": "Optional", "B": "Crucial", "C": "Secondary", "D": "Trivial"},
-                    "answer": "B", "explanation": "Imperative means of vital importance or crucial."
+                    "answer": "A", "explanation": "Using the power rule, the derivative of 3x^2 is 6x, and 5x is 5."
                 }
             ]
-        print(f"📦 CBTEngine Matrix Active. Mapped Clean Records Count: {len(self.db)} proper items.", flush=True)
+        print(f"📦 CBTEngine Matrix Activated. Clean Records: {len(self.db)} items.", flush=True)
         self.active_exams = {}
 
     def get_questions(self, subject=None, year=None, limit=10):
