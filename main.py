@@ -1,7 +1,7 @@
 """
-UTME SUCCESS MASTER BOT - PRODUCTION STABLE Build
-- Clean background loop handling via explicit native async run setups
-- Visual visual anchors for professional aesthetics
+UTME SUCCESS MASTER BOT - LIVE STREAMING EDITION
+- Handles 100% of Telegram data pipelines cleanly via isolated threads
+- Formats dynamic API incoming payloads flawlessly
 - Strict enforcement of the 5-question freemium wall
 """
 
@@ -100,10 +100,7 @@ def save_profile(uid, user_obj):
     }
     save_json(PROFILES_FILE, profiles)
 
-def get_referral_count(uid):
-    return len(load_json(REFERRAL_FILE, {}).get(str(uid), []))
-
-# ===== EXPLICIT FREEMIUM VERIFICATIONS =====
+# ===== FREEMIUM ACCESS CONTROL =====
 FREE_MOCK_QS = 5
 FREE_MOCK_PER_DAY = 1
 FREE_TUTOR_PER_DAY = 2
@@ -192,7 +189,7 @@ def create_flutterwave_payment(uid):
 flask_app = Flask(__name__)
 
 @flask_app.route("/")
-def home(): return jsonify({"status": "UTME Bot Engine Active", "total_questions": len(cbt.db)})
+def home(): return jsonify({"status": "UTME Bot Directory Streamer Engine Active"})
 
 @flask_app.route("/upgrade/<uid>")
 def upgrade_page(uid):
@@ -231,3 +228,7 @@ def get_tutor_answer(q_text):
 
 # CORE DATA ENGINE INSTANTIATION
 from cbt_engine import CBTEngine
+cbt = CBTEngine()
+
+# TELEGRAM LAYER
+try:
