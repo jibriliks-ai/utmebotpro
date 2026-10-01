@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: utme-success-bot-v17-3
+    name: utme-success-bot-v17-1
     env: python
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: python run.py
@@ -33,6 +33,7 @@ services:
       - key: REFERRAL_REWARD_DAYS
         sync: false
         value: 7
+      # Flutterwave
       - key: FLW_PUBLIC_KEY
         sync: false
       - key: FLW_SECRET_KEY
@@ -42,6 +43,7 @@ services:
         value: utme_webhook_hash_123
       - key: FLW_ENCRYPTION_KEY
         sync: false
+      # Paystack
       - key: PAYSTACK_PUBLIC_KEY
         sync: false
       - key: PAYSTACK_SECRET_KEY
