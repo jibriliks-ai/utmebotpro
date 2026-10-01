@@ -1,26 +1,18 @@
-"""
-UTME SUCCESS MASTER BOT - LIVE PRODUCTION BUILD
-- Decoupled execution loop utilizing Gunicorn production servers
-- Streams authentic questions on-demand from 2010 to 2024
-- 100% Free of thread lock collisions and background loop errors
-"""
-
 import os
-import json
-import time
-import uuid
-import re
+import sys
 import html
 import requests
-from flask import Flask, request, jsonify, render_template_string, redirect
+from flask import Flask, request, jsonify, render_template_string
+
+# Instant Traceback Fallback Setup
+print("=== PRODUCTION APPLICATION INGESTION LOOP INITIATED ===", flush=True)
 
 try:
     from dotenv import load_dotenv
     load_dotenv()
-except ImportError:
-    pass
+except Exception as e:
+    print(f"Dotenv optional block bypassed: {e}", flush=True)
 
-print("=== UTME SUCCESS BOT PRODUCTION LOGS ACTIVE ===")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
 RENDER_RAW = os.getenv("RENDER_EXTERNAL_URL", "https://onrender.com")
@@ -28,146 +20,39 @@ RENDER_URL = RENDER_RAW.strip().rstrip("/").replace("://", ".onrender.com")
 if not RENDER_URL.startswith("http"):
     RENDER_URL = "https://" + RENDER_URL
 
+print(f"VERIFYING ENVIRONMENT PARAMETERS: TOKEN_PRESENT={bool(BOT_TOKEN)} URL={RENDER_URL}", flush=True)
+
 SUBJECTS = ["English","Mathematics","Biology","Chemistry","Physics","Economics","Government","Literature","Commerce","CRS"]
 
-DB_FILE = "premium_users.json"
-STATS_FILE = "user_stats.json"
-REFERRAL_FILE = "referrals.json"
-PROFILES_FILE = "user_profiles.json"
-USAGE_FILE = "free_usage.json"
+# INLINE STORAGE DICTIONARY SUITE
+ACTIVE_EXAMS = {}
 
-def load_json(path, default):
-    if not os.path.exists(path): return default
-    try:
-        with open(path, "r", encoding="utf-8") as f: return json.load(f)
-    except: return default
-
-def save_json(path, data):
-    try:
-        with open(path, "w", encoding="utf-8") as f: json.dump(data, f, indent=2, ensure_ascii=False)
-    except Exception as e: print(f"Save database error: {e}", flush=True)
-
-def is_premium(uid):
-    db = load_json(DB_FILE, {})
-    ud = db.get(str(uid))
-    if not ud: return False
-    return time.time() < ud.get("expiry", 0)
-
-def save_profile(uid, first_name, username):
-    profiles = load_json(PROFILES_FILE, {})
-    uid_str = str(uid)
-    profiles[uid_str] = {
-        "user_id": uid,
-        "first_name": first_name or 'Student',
-        "username": username or '',
-        "last_seen": time.time(),
-        "is_premium": is_premium(uid)
-    }
-    save_json(PROFILES_FILE, profiles)
-
-# ===== FREEMIUM ACCESS RULES =====
-FREE_MOCK_QS = 5
-FREE_MOCK_PER_DAY = 1
-
-def get_usage(uid):
-    data = load_json(USAGE_FILE, {})
-    today = time.strftime("%Y-%m-%d")
-    ud = data.get(str(uid), {"date": "", "mock": 0})
-    if ud.get("date") != today:
-        ud = {"date": today, "mock": 0}
-        data[str(uid)] = ud
-        save_json(USAGE_FILE, data)
-    return ud
-
-def can_mock(uid):
-    if is_premium(uid): return True, "Premium unlimited"
-    u = get_usage(uid)
-    if u.get("mock", 0) >= FREE_MOCK_PER_DAY:
-        return False, f"⚠️ <b>Daily Free Mock Limit Reached!</b>\n\nFree tier accounts are limited to exactly 1 exam of 5 questions per day.\n\n💎 <b>Upgrade to Premium</b> to unlock full 180-Question mock simulations with zero repetition!"
-    return True, f"Free {FREE_MOCK_QS}Q Mocks Available"
-
-def inc_mock(uid):
-    if is_premium(uid): return
-    data = load_json(USAGE_FILE, {})
-    today = time.strftime("%Y-%m-%d")
-    ud = data.get(str(uid), {"date": today, "mock": 0})
-    ud["mock"] += 1
-    data[str(uid)] = ud
-    save_json(USAGE_FILE, data)
-
-def update_stats(uid, subject, correct, total, jamb_score, name=""):
-    stats = load_json(STATS_FILE, {})
-    u = stats.get(str(uid), {"best_score": 0, "name": name, "total_exams": 0})
-    u["total_exams"] += 1
-    u["best_score"] = max(u["best_score"], jamb_score)
-    stats[str(uid)] = u
-    save_json(STATS_FILE, stats)
-    return u
-
-# NATIVE HTTP TELEGRAM MESSENGER LAYER
-def send_tg_message(chat_id, text, reply_markup=None):
-    url = f"https://telegram.org{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
-    if reply_markup:
-        payload["reply_markup"] = reply_markup
-    try:
-        requests.post(url, json=payload, timeout=10)
-    except Exception as e:
-        print(f"Telegram Delivery Timeout Warning: {e}", flush=True)
-
-# CORE DATA ENGINE INSTANTIATION
-from cbt_engine import CBTEngine
-cbt = CBTEngine()
-
-def format_question(q, idx, total):
-    header = f"<b>📝 Question {idx+1}/{total}</b> | {q.get('subject')} | {q.get('year')}\n\n"
-    body = f"<b>{html.escape(q.get('question', ''))}</b>\n\n"
-    opts_block = ""
-    for letter, text in q.get('options', {}).items():
-        opts_block += f"<b>{letter}</b>: {html.escape(str(text))}\n"
-    return header + body + opts_block
-
-def get_main_menu_markup():
-    return {
-        "inline_keyboard": [
-            [{"text": "📝 Take Mock Exam", "callback_data": "menu_mock"}, {"text": "📚 Past Questions", "callback_data": "menu_past"}],
-            [{"text": "💎 Go Premium Access", "callback_data": "menu_premium"}]
-        ]
-    }
-
-def get_options_markup(q, current_idx):
-    row = [{"text": f"Option {k}", "callback_data": f"ans_{k}"} for k in q.get('options', {}).keys()]
-    return {
-        "inline_keyboard": [
-            row,
-            [{"text": "🛑 Submit Exam", "callback_data": "submit"}],
-            [{"text": "🔙 Back to Main Menu", "callback_data": "menu_main"}]
-        ]
-    }
-
-# FLASK NATIVE ENGINE LAYERING
+# FLASK BACKEND ENGINE
 flask_app = Flask(__name__)
 
 @flask_app.route("/")
 def home():
-    return jsonify({"status": "UTME Bot Engine Active", "mode": "Production Gunicorn Webhook"})
+    return jsonify({"status": "UTME Bot Engine Active", "mode": "Production Gunicorn Webhook Layer"})
 
 @flask_app.route("/telegram", methods=["POST"])
 def webhook_endpoint():
-    data = request.get_json(force=True)
+    try:
+        data = request.get_json(force=True)
+    except Exception as e:
+        print(f"JSON Ingestion Error: {e}", flush=True)
+        return "OK", 200
     
     if "message" in data:
         msg = data["message"]
         chat_id = msg["chat"]["id"]
         text = msg.get("text", "").strip()
-        first_name = msg["from"].get("first_name", "Student")
-        username = msg["from"].get("username", "")
         
         if text.startswith("/start"):
-            save_profile(chat_id, first_name, username)
-            status_tag = "💎 Premium Tier" if is_premium(chat_id) else "🆓 Free Access Tier"
-            welcome = f"🎓 <b>Welcome to JAMB UTME Success Master Bot Pro!</b>\n\n⚙️ Account Status: <b>{status_tag}</b>\n\nSelect an option module below to kickstart your preparation loops:"
-            send_tg_message(chat_id, welcome, reply_markup=get_main_menu_markup())
+            welcome = "🎓 <b>Welcome to JAMB UTME Success Master Bot Pro!</b>\n\nTap the option below to kickstart your preparation loops:"
+            markup = {
+                "inline_keyboard": [[{"text": "📝 Take Mock Exam", "callback_data": "menu_mock"}]]
+            }
+            send_tg_message(chat_id, welcome, reply_markup=markup)
             
     elif "callback_query" in data:
         query = data["callback_query"]
@@ -175,69 +60,87 @@ def webhook_endpoint():
         cb_data = query["data"]
         uid = query["from"]["id"]
         
-        if cb_data == "menu_main":
-            status_tag = "💎 Premium Tier" if is_premium(uid) else "🆓 Free Access Tier"
-            send_tg_message(chat_id, f"🎓 <b>Main Console Dashboard:</b>\n\nStatus: <b>{status_tag}</b>", reply_markup=get_main_menu_markup())
-            
-        elif cb_data == "menu_mock":
-            ok, msg = can_mock(uid)
-            if not ok:
-                send_tg_message(chat_id, msg)
-                return "OK", 200
-            limit = 40 if is_premium(uid) else FREE_MOCK_QS
-            if not is_premium(uid): inc_mock(uid)
-            q, total = cbt.start_mock(uid, ["English", "Mathematics"], limit_per_subject=limit//2)
-            if q:
-                send_tg_message(chat_id, format_question(q, 0, total), reply_markup=get_options_markup(q, 0))
+        if cb_data == "menu_mock":
+            # Direct API Stream Handling Loop
+            send_tg_message(chat_id, "⏳ <b>Streaming fresh questions live from the cloud directory archive...</b>")
+            qs = fetch_jamb_questions(subject="english", limit=5)
+            if qs:
+                ACTIVE_EXAMS[str(uid)] = {"questions": qs, "current": 0, "score": 0}
+                q = qs[0]
+                q_text = f"<b>📝 Question 1/5</b>\n\n{html.escape(q['question'])}\n\n"
+                for l, t in q["options"].items():
+                    q_text += f"<b>{l}</b>: {html.escape(t)}\n"
                 
-        elif cb_data == "menu_past":
-            row1 = [{"text": s[:4], "callback_data": f"past_{s}"} for s in SUBJECTS[:5]]
-            row2 = [{"text": s[:4], "callback_data": f"past_{s}"} for s in SUBJECTS[5:]]
-            markup = {"inline_keyboard": [row1, row2, [{"text": "🔙 Back", "callback_data": "menu_main"}]]}
-            send_tg_message(chat_id, "📚 <b>Select Past Question Subject Array:</b>", reply_markup=markup)
-            
-        elif cb_data.startswith("past_"):
-            subj = cb_data.replace("past_", "")
-            ok, msg = can_mock(uid)
-            if not ok:
-                send_tg_message(chat_id, msg)
-                return "OK", 200
-            limit = 40 if is_premium(uid) else FREE_MOCK_QS
-            if not is_premium(uid): inc_mock(uid)
-            q, total = cbt.start_mock(uid, [subj], limit_per_subject=limit)
-            if q:
-                send_tg_message(chat_id, format_question(q, 0, total), reply_markup=get_options_markup(q, 0))
+                row = [{"text": f"Option {k}", "callback_data": f"ans_{k}"} for k in q["options"].keys()]
+                markup = {"inline_keyboard": [row]}
+                send_tg_message(chat_id, q_text, reply_markup=markup)
+            else:
+                send_tg_message(chat_id, "⚠️ Network connection delay. Please tap /start to try again shortly.")
                 
         elif cb_data.startswith("ans_"):
-            choice = cb_data.replace("ans_", "")
-            res, status = cbt.answer_current(uid, choice)
-            if status == "FINISHED":
-                update_stats(uid, "General Mix", res['raw_score'], res['total'], res['jamb_score'])
-                send_tg_message(chat_id, f"🏁 <b>Exam Session Finished!</b>\n\nScore parameters: {res['raw_score']}/{res['total']}\nEstimated JAMB Score: <b>{res['jamb_score']}/400</b>")
-            elif status == "NEXT":
-                nq, nidx = res
-                exam = cbt.active_exams.get(uid)
-                total = len(exam['questions']) if exam else 0
-                send_tg_message(chat_id, format_question(nq, nidx, total), reply_markup=get_options_markup(nq, current_idx=nidx))
+            choice = cb_data.replace("ans_", "").upper()
+            exam = ACTIVE_EXAMS.get(str(uid))
+            if exam:
+                curr = exam["current"]
+                qs = exam["questions"]
+                if choice == qs[curr]["answer"]:
+                    exam["score"] += 1
+                exam["current"] += 1
                 
-        elif cb_data == "submit":
-            res = cbt.finish_exam(uid)
-            if res:
-                send_tg_message(chat_id, f"🏁 <b>Exam session early terminated.</b>\nScore: {res['raw_score']}/{res['total']}")
-                
-        elif cb_data == "menu_premium":
-            send_tg_message(chat_id, f"💎 <b>Premium Billing Portal Checkout Link:</b>\n\n🔗 Link: {RENDER_URL}/upgrade/{uid}")
-            
+                if exam["current"] >= len(qs):
+                    score = exam["score"]
+                    send_tg_message(chat_id, f"🏁 <b>Exam Completed!</b>\n\nYour Score: <b>{score}/5</b>\nEstimated JAMB weight score matches: <b>{int((score/5)*400)}/400</b>")
+                    ACTIVE_EXAMS.pop(str(uid), None)
+                else:
+                    n_idx = exam["current"]
+                    q = qs[n_idx]
+                    q_text = f"<b>📝 Question {n_idx+1}/5</b>\n\n{html.escape(q['question'])}\n\n"
+                    for l, t in q["options"].items():
+                        q_text += f"<b>{l}</b>: {html.escape(t)}\n"
+                    row = [{"text": f"Option {k}", "callback_data": f"ans_{k}"} for k in q["options"].keys()]
+                    markup = {"inline_keyboard": [row]}
+                    send_tg_message(chat_id, q_text, reply_markup=markup)
+                    
     return "OK", 200
 
-@flask_app.route("/upgrade/<uid>")
-def upgrade_checkout(uid):
-    return render_template_string(f"<h1>🎓 Premium Activation</h1><p>User Token Parameter: {uid}</p>")
+def send_tg_message(chat_id, text, reply_markup=None):
+    if not BOT_TOKEN: return
+    url = f"https://telegram.org{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    if reply_markup: payload["reply_markup"] = reply_markup
+    try: requests.post(url, json=payload, timeout=8)
+    except Exception as e: print(f"Telegram Post Timeout: {e}", flush=True)
 
-# AUTO-SET TELEGRAM WEBHOOK IN REAL-TIME DURING SYSTEM DEPLOY
+def fetch_jamb_questions(subject="english", limit=5):
+    url = f"https://aloc.ng{subject.lower().strip()}&limit={limit}"
+    headers = {"Accept": "application/json", "X-Public-Key": "anon_public_key_utme_success_bot_2026"}
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            raw = r.json().get("data", [])
+            clean = []
+            for item in raw:
+                opts = item.get("option", {})
+                clean.append({
+                    "question": item.get("question", "Question placeholder text."),
+                    "options": {
+                        "A": opts.get("a", "Option A description"),
+                        "B": opts.get("b", "Option B description"),
+                        "C": opts.get("c", "Option C description"),
+                        "D": opts.get("d", "Option D description")
+                    },
+                    "answer": str(item.get("answer", "A")).upper().strip()
+                })
+            return clean
+    except Exception as e:
+        print(f"API Data Stream Interruption Loop: {e}", flush=True)
+    return []
+
+# INITIAL AUTOMATED PIPELINE BINDING
 if BOT_TOKEN:
     try:
         target_webhook = f"{RENDER_URL}/telegram"
-        requests.get(f"https://telegram.org{BOT_TOKEN}/setWebhook?url={target_webhook}&drop_pending_updates=true", timeout=8)
+        requests.get(f"https://telegram.org{BOT_TOKEN}/setWebhook?url={target_webhook}&drop_pending_updates=true", timeout=6)
+        print("📢 Webhook pipeline configuration successfully synchronised.", flush=True)
     except Exception as e:
-        print(f"Webhook connection step skipped safely: {e}")
+        print(f"Webhook binding warning logged: {e}", flush=True)
