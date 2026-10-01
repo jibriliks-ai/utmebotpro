@@ -4,30 +4,25 @@ import html
 import requests
 from flask import Flask, request, jsonify, render_template_string
 
-# Instant Traceback Fallback Setup
 print("=== PRODUCTION APPLICATION INGESTION LOOP INITIATED ===", flush=True)
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except Exception as e:
-    print(f"Dotenv optional block bypassed: {e}", flush=True)
-
+# Directly access pre-validated environment properties
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
-RENDER_RAW = os.getenv("RENDER_EXTERNAL_URL", "https://onrender.com")
-RENDER_URL = RENDER_RAW.strip().rstrip("/").replace("://", ".onrender.com")
-if not RENDER_URL.startswith("http"):
-    RENDER_URL = "https://" + RENDER_URL
+RENDER_RAW = os.getenv("RENDER_EXTERNAL_URL", "").strip()
+
+# Resilient normalization cleanup protocol for sub-domains
+if not RENDER_RAW:
+    RENDER_URL = "https://onrender.com"
+else:
+    clean_url = RENDER_RAW.replace("http://", "").replace("https://", "").strip("/")
+    RENDER_URL = f"https://{clean_url}"
 
 print(f"VERIFYING ENVIRONMENT PARAMETERS: TOKEN_PRESENT={bool(BOT_TOKEN)} URL={RENDER_URL}", flush=True)
 
 SUBJECTS = ["English","Mathematics","Biology","Chemistry","Physics","Economics","Government","Literature","Commerce","CRS"]
-
-# INLINE STORAGE DICTIONARY SUITE
 ACTIVE_EXAMS = {}
 
-# FLASK BACKEND ENGINE
 flask_app = Flask(__name__)
 
 @flask_app.route("/")
@@ -61,7 +56,6 @@ def webhook_endpoint():
         uid = query["from"]["id"]
         
         if cb_data == "menu_mock":
-            # Direct API Stream Handling Loop
             send_tg_message(chat_id, "⏳ <b>Streaming fresh questions live from the cloud directory archive...</b>")
             qs = fetch_jamb_questions(subject="english", limit=5)
             if qs:
@@ -105,7 +99,9 @@ def webhook_endpoint():
 
 def send_tg_message(chat_id, text, reply_markup=None):
     if not BOT_TOKEN: return
-    url = f"https://telegram.org{BOT_TOKEN}/sendMessage"
+    # Strict fallback lookup cleanup logic
+    clean_token = BOT_TOKEN.replace("telegram.org", "").strip()
+    url = f"https://telegram.org{clean_token}/sendMessage"
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
     if reply_markup: payload["reply_markup"] = reply_markup
     try: requests.post(url, json=payload, timeout=8)
@@ -136,11 +132,11 @@ def fetch_jamb_questions(subject="english", limit=5):
         print(f"API Data Stream Interruption Loop: {e}", flush=True)
     return []
 
-# INITIAL AUTOMATED PIPELINE BINDING
 if BOT_TOKEN:
     try:
+        clean_token = BOT_TOKEN.replace("telegram.org", "").strip()
         target_webhook = f"{RENDER_URL}/telegram"
-        requests.get(f"https://telegram.org{BOT_TOKEN}/setWebhook?url={target_webhook}&drop_pending_updates=true", timeout=6)
+        requests.get(f"https://telegram.org{clean_token}/setWebhook?url={target_webhook}&drop_pending_updates=true", timeout=6)
         print("📢 Webhook pipeline configuration successfully synchronised.", flush=True)
     except Exception as e:
         print(f"Webhook binding warning logged: {e}", flush=True)
