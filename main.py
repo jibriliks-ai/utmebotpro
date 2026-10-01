@@ -1,7 +1,8 @@
 """
-UTME SUCCESS MASTER BOT - WEBHOOK PRODUCTION Build
-- Synchronous direct request web architecture
-- 100% Fixed environment port bindings for stable Render deployment
+UTME SUCCESS MASTER BOT - LIVE PRODUCTION BUILD
+- Decoupled execution loop utilizing Gunicorn production servers
+- Streams authentic questions on-demand from 2010 to 2024
+- 100% Free of thread lock collisions and background loop errors
 """
 
 import os
@@ -19,17 +20,13 @@ try:
 except ImportError:
     pass
 
-print("=== UTME SUCCESS BOT MASTER ENGINE BOOTING ===")
+print("=== UTME SUCCESS BOT PRODUCTION LOGS ACTIVE ===")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
 RENDER_RAW = os.getenv("RENDER_EXTERNAL_URL", "https://onrender.com")
 RENDER_URL = RENDER_RAW.strip().rstrip("/").replace("://", ".onrender.com")
 if not RENDER_URL.startswith("http"):
     RENDER_URL = "https://" + RENDER_URL
-
-if not BOT_TOKEN:
-    print("❌ CRITICAL ERROR: BOT_TOKEN is missing in Render Environment Variables! Exiting...")
-    exit(1)
 
 SUBJECTS = ["English","Mathematics","Biology","Chemistry","Physics","Economics","Government","Literature","Commerce","CRS"]
 
@@ -98,7 +95,16 @@ def inc_mock(uid):
     data[str(uid)] = ud
     save_json(USAGE_FILE, data)
 
-# NATIVE HTTP TELEGRAM REQUEST MESSENGER
+def update_stats(uid, subject, correct, total, jamb_score, name=""):
+    stats = load_json(STATS_FILE, {})
+    u = stats.get(str(uid), {"best_score": 0, "name": name, "total_exams": 0})
+    u["total_exams"] += 1
+    u["best_score"] = max(u["best_score"], jamb_score)
+    stats[str(uid)] = u
+    save_json(STATS_FILE, stats)
+    return u
+
+# NATIVE HTTP TELEGRAM MESSENGER LAYER
 def send_tg_message(chat_id, text, reply_markup=None):
     url = f"https://telegram.org{BOT_TOKEN}/sendMessage"
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
@@ -139,12 +145,12 @@ def get_options_markup(q, current_idx):
         ]
     }
 
-# FLASK CORE INSTANCE
+# FLASK NATIVE ENGINE LAYERING
 flask_app = Flask(__name__)
 
 @flask_app.route("/")
 def home():
-    return jsonify({"status": "UTME Bot Engine Active", "api_mode": "Streaming"})
+    return jsonify({"status": "UTME Bot Engine Active", "mode": "Production Gunicorn Webhook"})
 
 @flask_app.route("/telegram", methods=["POST"])
 def webhook_endpoint():
@@ -228,16 +234,10 @@ def webhook_endpoint():
 def upgrade_checkout(uid):
     return render_template_string(f"<h1>🎓 Premium Activation</h1><p>User Token Parameter: {uid}</p>")
 
-# AUTO-REGISTER WEBHOOK TARGET ON STARTUP
-try:
-    target_webhook = f"{RENDER_URL}/telegram"
-    r = requests.get(f"https://telegram.org{BOT_TOKEN}/setWebhook?url={target_webhook}&drop_pending_updates=true", timeout=6)
-    print(f"📢 Webhook setup response: {r.text}", flush=True)
-except Exception as e:
-    print(f"Webhook setup notice flag: {e}", flush=True)
-
-if __name__ == "__main__":
-    # MANDATORY FIX: Pull Render's assigned port dynamically or fall back to 10000
-    port = int(os.environ.get("PORT", 10000))
-    print(f"🚀 Launching core server instance layer on host 0.0.0.0 and port: {port}", flush=True)
-    flask_app.run(host="0.0.0.0", port=port)
+# AUTO-SET TELEGRAM WEBHOOK IN REAL-TIME DURING SYSTEM DEPLOY
+if BOT_TOKEN:
+    try:
+        target_webhook = f"{RENDER_URL}/telegram"
+        requests.get(f"https://telegram.org{BOT_TOKEN}/setWebhook?url={target_webhook}&drop_pending_updates=true", timeout=8)
+    except Exception as e:
+        print(f"Webhook connection step skipped safely: {e}")
