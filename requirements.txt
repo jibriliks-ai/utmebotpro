@@ -1,4 +1,4 @@
-# Fixed for Python 3.14.3 on Render - v17.2
+# v18 FINAL - BLUE MENU + ALOC FIXED - Deploy Safe
 python-telegram-bot==21.10
 Flask==3.1.1
 requests==2.32.3
