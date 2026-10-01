@@ -1,8 +1,7 @@
 """
-UTME SUCCESS MASTER BOT - RESILIENT PRODUCTION BUILD
-- Removed background threads to prevent Render early exit crashes
+UTME SUCCESS MASTER BOT - WEBHOOK PRODUCTION Build
 - Synchronous direct request architecture
-- Built-in horizontal layout configurations for Telegram buttons
+- 100% Fixed environment token validations
 """
 
 import os
@@ -22,27 +21,17 @@ except ImportError:
 
 print("=== UTME SUCCESS BOT MASTER ENGINE BOOTING ===")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
-FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY", "").strip()
 PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "").strip()
 RENDER_RAW = os.getenv("RENDER_EXTERNAL_URL", "https://onrender.com")
 RENDER_URL = RENDER_RAW.strip().rstrip("/").replace("://", ".onrender.com")
 if not RENDER_URL.startswith("http"):
     RENDER_URL = "https://" + RENDER_URL
 
+if not BOT_TOKEN:
+    print("❌ CRITICAL ERROR: BOT_TOKEN is missing in Render Environment Variables! Exiting...")
+    exit(1)
+
 SUBJECTS = ["English","Mathematics","Biology","Chemistry","Physics","Economics","Government","Literature","Commerce","CRS"]
-JAMB_SYLLABUS = {
-    "English": ["Comprehension", "Lexis & Structure", "Oral Forms", "Parts of Speech"],
-    "Mathematics": ["Algebra", "Geometry", "Calculus", "Statistics", "Trigonometry"],
-    "Biology": ["Variety of Organisms", "Cell Structure", "Genetics", "Ecology", "Physiology"],
-    "Chemistry": ["Particulate Nature", "Periodic Table", "Bonding", "Organic Chemistry", "Acids & Bases"],
-    "Physics": ["Mechanics", "Waves", "Electricity", "Heat", "Optics"],
-    "Economics": ["Demand & Supply", "Production", "Market Structure", "National Income"],
-    "Government": ["Constitution", "Government Arms", "Political Parties"],
-    "Literature": ["Poetry", "Drama", "Prose"],
-    "Commerce": ["Trade", "Business Units", "Finance"],
-    "CRS": ["Old Testament", "New Testament"]
-}
 
 DB_FILE = "premium_users.json"
 STATS_FILE = "user_stats.json"
@@ -82,14 +71,13 @@ def save_profile(uid, first_name, username):
 # ===== FREEMIUM ACCESS RULES =====
 FREE_MOCK_QS = 5
 FREE_MOCK_PER_DAY = 1
-FREE_TUTOR_PER_DAY = 2
 
 def get_usage(uid):
     data = load_json(USAGE_FILE, {})
     today = time.strftime("%Y-%m-%d")
-    ud = data.get(str(uid), {"date": "", "mock": 0, "tutor": 0})
+    ud = data.get(str(uid), {"date": "", "mock": 0})
     if ud.get("date") != today:
-        ud = {"date": today, "mock": 0, "tutor": 0}
+        ud = {"date": today, "mock": 0}
         data[str(uid)] = ud
         save_json(USAGE_FILE, data)
     return ud
@@ -105,35 +93,10 @@ def inc_mock(uid):
     if is_premium(uid): return
     data = load_json(USAGE_FILE, {})
     today = time.strftime("%Y-%m-%d")
-    ud = data.get(str(uid), {"date": today, "mock": 0, "tutor": 0})
+    ud = data.get(str(uid), {"date": today, "mock": 0})
     ud["mock"] += 1
     data[str(uid)] = ud
     save_json(USAGE_FILE, data)
-
-def can_tutor(uid):
-    if is_premium(uid): return True, "Premium unlimited"
-    u = get_usage(uid)
-    if u.get("tutor", 0) >= FREE_TUTOR_PER_DAY:
-        return False, f"⚠️ <b>AI Tutor Daily Limit Reached!</b>\n\nYou have used your 2 free dynamic tutor requests for today.\n\n💎 Upgrade to Premium for unhindered smart textbook explanations with instant voice answers!"
-    return True, ""
-
-def inc_tutor(uid):
-    if is_premium(uid): return
-    data = load_json(USAGE_FILE, {})
-    today = time.strftime("%Y-%m-%d")
-    ud = data.get(str(uid), {"date": today, "mock": 0, "tutor": 0})
-    ud["tutor"] += 1
-    data[str(uid)] = ud
-    save_json(USAGE_FILE, data)
-
-def update_stats(uid, subject, correct, total, jamb_score, name=""):
-    stats = load_json(STATS_FILE, {})
-    u = stats.get(str(uid), {"best_score": 0, "name": name, "total_exams": 0})
-    u["total_exams"] += 1
-    u["best_score"] = max(u["best_score"], jamb_score)
-    stats[str(uid)] = u
-    save_json(STATS_FILE, stats)
-    return u
 
 # NATIVE HTTP TELEGRAM REQUEST MESSENGER
 def send_tg_message(chat_id, text, reply_markup=None):
@@ -162,8 +125,6 @@ def get_main_menu_markup():
     return {
         "inline_keyboard": [
             [{"text": "📝 Take Mock Exam", "callback_data": "menu_mock"}, {"text": "📚 Past Questions", "callback_data": "menu_past"}],
-            [{"text": "💬 Ask AI Tutor", "callback_data": "menu_tutor"}, {"text": "📊 Performance Score", "callback_data": "menu_score"}],
-            [{"text": "📖 JAMB Syllabus", "callback_data": "menu_syllabus"}, {"text": "👥 Invite Friends", "callback_data": "menu_invite"}],
             [{"text": "💎 Go Premium Access", "callback_data": "menu_premium"}]
         ]
     }
@@ -183,11 +144,10 @@ flask_app = Flask(__name__)
 
 @flask_app.route("/")
 def home():
-    return jsonify({"status": "UTME Bot Engine Safe Mode Active", "total_questions": len(cbt.db)})
+    return jsonify({"status": "UTME Bot Engine Active", "api_mode": "Streaming"})
 
 @flask_app.route("/telegram", methods=["POST"])
 def webhook_endpoint():
-    """Processes incoming data directly from Telegram via webhooks, completely eliminating thread overhead [14]."""
     data = request.get_json(force=True)
     
     if "message" in data:
@@ -200,7 +160,7 @@ def webhook_endpoint():
         if text.startswith("/start"):
             save_profile(chat_id, first_name, username)
             status_tag = "💎 Premium Tier" if is_premium(chat_id) else "🆓 Free Access Tier"
-            welcome = f"🎓 <b>Welcome to JAMB UTME Success Master Bot Pro!</b>\n\n⚙️ Account Status: <b>{status_tag}</b>\n\nSelect a feature block option below to start your exam practice loops:"
+            welcome = f"🎓 <b>Welcome to JAMB UTME Success Master Bot Pro!</b>\n\n⚙️ Account Status: <b>{status_tag}</b>\n\nSelect an option module below to kickstart your preparation loops:"
             send_tg_message(chat_id, welcome, reply_markup=get_main_menu_markup())
             
     elif "callback_query" in data:
@@ -211,7 +171,7 @@ def webhook_endpoint():
         
         if cb_data == "menu_main":
             status_tag = "💎 Premium Tier" if is_premium(uid) else "🆓 Free Access Tier"
-            send_tg_message(chat_id, f"🎓 <b>Main Dashboard Workspace:</b>\n\nStatus: <b>{status_tag}</b>", reply_markup=get_main_menu_markup())
+            send_tg_message(chat_id, f"🎓 <b>Main Console Dashboard:</b>\n\nStatus: <b>{status_tag}</b>", reply_markup=get_main_menu_markup())
             
         elif cb_data == "menu_mock":
             ok, msg = can_mock(uid)
@@ -237,3 +197,46 @@ def webhook_endpoint():
                 send_tg_message(chat_id, msg)
                 return "OK", 200
             limit = 40 if is_premium(uid) else FREE_MOCK_QS
+            if not is_premium(uid): inc_mock(uid)
+            q, total = cbt.start_mock(uid, [subj], limit_per_subject=limit)
+            if q:
+                send_tg_message(chat_id, format_question(q, 0, total), reply_markup=get_options_markup(q, 0))
+                
+        elif cb_data.startswith("ans_"):
+            choice = cb_data.replace("ans_", "")
+            res, status = cbt.answer_current(uid, choice)
+            if status == "FINISHED":
+                update_stats(uid, "General Mix", res['raw_score'], res['total'], res['jamb_score'])
+                send_tg_message(chat_id, f"🏁 <b>Exam Session Finished!</b>\n\nScore parameters: {res['raw_score']}/{res['total']}\nEstimated JAMB Score: <b>{res['jamb_score']}/400</b>")
+            elif status == "NEXT":
+                nq, nidx = res
+                exam = cbt.active_exams.get(uid)
+                total = len(exam['questions']) if exam else 0
+                send_tg_message(chat_id, format_question(nq, nidx, total), reply_markup=get_options_markup(nq, current_idx=nidx))
+                
+        elif cb_data == "submit":
+            res = cbt.finish_exam(uid)
+            if res:
+                send_tg_message(chat_id, f"🏁 <b>Exam session early terminated.</b>\nScore: {res['raw_score']}/{res['total']}")
+                
+        elif cb_data == "menu_premium":
+            send_tg_message(chat_id, f"💎 <b>Premium Billing Portal Checkout Link:</b>\n\n🔗 Link: {RENDER_URL}/upgrade/{uid}")
+            
+    return "OK", 200
+
+@flask_app.route("/upgrade/<uid>")
+def upgrade_checkout(uid):
+    return render_template_string(f"<h1>🎓 Premium Activation</h1><p>User Token Parameter: {uid}</p>")
+
+# AUTO-REGISTER WEBHOOK TARGET ON STARTUP
+try:
+    target_webhook = f"{RENDER_URL}/telegram"
+    r = requests.get(f"https://telegram.org{BOT_TOKEN}/setWebhook?url={target_webhook}&drop_pending_updates=true", timeout=6)
+    print(f"📢 Webhook setup response: {r.text}", flush=True)
+except Exception as e:
+    print(f"Webhook setup notice flag: {e}", flush=True)
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    print(f"🚀 Launching core server instance layer on port: {port}", flush=True)
+    flask_app.run(host="0.0.0.0", port=port)
