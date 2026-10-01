@@ -4,5 +4,6 @@ Flask==3.1.1
 requests==2.32.3
 gTTS==2.5.4
 python-dotenv==1.0.1
+Pillow==11.3.0
 # Pillow removed - optional feature, bot sends text share if missing
 # If you want image share, add Pillow==11.3.0 and set PYTHON_VERSION=3.11.11 in Render dashboard
