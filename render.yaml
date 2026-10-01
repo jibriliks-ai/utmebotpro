@@ -1,48 +1,39 @@
 services:
-  - type: web
+    - type: web
     name: utme-success-bot-v17-3
     env: python
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: python run.py
+    healthCheckPath: /health
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.11
-      - key: BOT_TOKEN
+            - key: BOT_TOKEN
         sync: false
-      - key: BOT_USERNAME
+            - key: BOT_USERNAME
         sync: false
         value: YourBot
-      - key: ALOC_ACCESS_TOKEN
+            - key: ALOC_ACCESS_TOKEN
         sync: false
-      - key: PAYMENT_URL
+            - key: PAYMENT_URL
         sync: false
-      - key: ADMIN_ID
+            - key: ADMIN_ID
         sync: false
-      - key: PREMIUM_PRICE
-        sync: false
+            - key: PREMIUM_PRICE
         value: 2000
-      - key: FREE_MOCK_QS_DAILY
-        sync: false
+            - key: FREE_MOCK_QS_DAILY
         value: 5
-      - key: FREE_TUTOR_PER_DAY
-        sync: false
+            - key: FREE_TUTOR_PER_DAY
         value: 2
-      - key: REFERRAL_REQUIRED
-        sync: false
+            - key: REFERRAL_REQUIRED
         value: 3
-      - key: REFERRAL_REWARD_DAYS
-        sync: false
+            - key: REFERRAL_REWARD_DAYS
         value: 7
-      - key: FLW_PUBLIC_KEY
+            - key: FLW_PUBLIC_KEY
         sync: false
-      - key: FLW_SECRET_KEY
+            - key: FLW_SECRET_KEY
         sync: false
-      - key: FLW_SECRET_HASH
-        sync: false
+            - key: FLW_SECRET_HASH
         value: utme_webhook_hash_123
-      - key: FLW_ENCRYPTION_KEY
+            - key: PAYSTACK_PUBLIC_KEY
         sync: false
-      - key: PAYSTACK_PUBLIC_KEY
-        sync: false
-      - key: PAYSTACK_SECRET_KEY
+            - key: PAYSTACK_SECRET_KEY
         sync: false
