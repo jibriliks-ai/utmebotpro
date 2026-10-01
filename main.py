@@ -32,7 +32,7 @@ from pathlib import Path
 import requests
 from flask import Flask, render_template_string, jsonify
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, MenuButtonCommands
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 try:
@@ -46,6 +46,16 @@ try:
     HAS_PIL=True
 except:
     HAS_PIL=False
+
+# --- BLUE MENU BUTTON - Always visible inside chat ---
+BLUE_MENU_KEYBOARD = ReplyKeyboardMarkup(
+    [[KeyboardButton("🔵 MENU"), KeyboardButton("📚 Past Questions")],
+     [KeyboardButton("📝 Mock Exam"), KeyboardButton("💎 Premium")]],
+    resize_keyboard=True,
+    is_persistent=True,  # Stays even after restart
+    one_time_keyboard=False
+)
+
 
 # --- CONFIG ---
 try:
@@ -394,7 +404,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await update.message.reply_text(f"🎉 You were invited! You got 3 days FREE premium! Invite {REFERRAL_REQUIRED} friends to get {REFERRAL_REWARD_DAYS} days free!")
                     break
     text, kb = main_menu(uid)
+    # Send inline menu
     await update.message.reply_text(text, reply_markup=kb, parse_mode="Markdown")
+    # Send persistent blue menu button - always visible even after scrolling
+    await update.message.reply_text(
+        "🔵 Tap MENU anytime - blue button always visible below 👇",
+        reply_markup=BLUE_MENU_KEYBOARD
+    )
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query=update.callback_query
@@ -495,8 +511,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if len(all_qs)>=10: break
             selected=random.sample(all_qs, min(5, len(all_qs))) if len(all_qs)>=5 else all_qs
         if not selected:
-            await query.message.reply_text("⚠️ No data, add ALOC token")
-            return
+            # Use fallback - never show "No data"
+            from cbt_engine import get_fallback_questions
+            all_qs = get_fallback_questions(subj if subj!="random" else "english", "2023", 20)
+            selected = random.sample(all_qs, min(5, len(all_qs))) if len(all_qs)>=5 else all_qs
+            await query.message.reply_text(f"✅ Using local JAMB bank - {len(selected)} Qs ready (ALOC fallback)")
         USER_SESSIONS[uid]={"qs":selected,"idx":0,"score":0,"mode":"quick","subjects":[subj],"start":datetime.now(),"per_subj_score":defaultdict(int),"per_subj_total":defaultdict(int)}
         for q in selected: USER_SESSIONS[uid]["per_subj_total"][q["subject_key"]]+=1
         consume_mock(uid, len(selected), [q["id"] for q in selected])
@@ -528,11 +547,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             count=5
         else:
             count=40
-        await query.message.reply_text(f"⏳ Fetching {SUBJECT_DISPLAY.get(subj,subj)} {year} - {count} Qs from ALOC...")
+        await query.message.reply_text(f"⏳ Fetching {SUBJECT_DISPLAY.get(subj,subj)} {year} - {count} Qs...\n(Using live ALOC + fallback)")
         qs=fetcher.fetch(subj, year, limit=40)
         if not qs:
-            await query.message.reply_text("⚠️ No data")
-            return
+            # Fallback should never be empty now, but just in case
+            from cbt_engine import get_fallback_questions
+            qs = get_fallback_questions(subj, year, count)
+        # Show source info
+        is_fallback = qs and qs[0]["id"].startswith("fallback")
+        source_text = "📦 Local JAMB Bank" if is_fallback else "🌐 ALOC Live Exact JAMB"
+        await query.message.reply_text(f"✅ Found {len(qs)} Qs - {source_text} - {SUBJECT_DISPLAY.get(subj,subj)} {year}")
         used=set(u["used_ids"])
         avail=[q for q in qs if q["id"] not in used] or qs
         selected=random.sample(avail, min(count, len(avail)))
@@ -592,6 +616,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for y in [2023,2022,2021,2020,2019]:
             eng.extend(fetcher.fetch("english", y, limit=60))
             if len(eng)>=60: break
+        if not eng:
+            from cbt_engine import get_fallback_questions
+            eng = get_fallback_questions("english", "2023", 60)
         random.shuffle(eng)
         full.extend(eng[:60])
         for subj in picked:
@@ -599,6 +626,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for y in [2023,2022,2021,2020]:
                 sq.extend(fetcher.fetch(subj, y, limit=40))
                 if len(sq)>=40: break
+            if not sq:
+                from cbt_engine import get_fallback_questions
+                sq = get_fallback_questions(subj, "2023", 40)
             random.shuffle(sq)
             full.extend(sq[:40])
         USER_SESSIONS[uid]={"qs":full,"idx":0,"score":0,"mode":"full_jamb","subjects":["english"]+picked,"start":datetime.now(),"per_subj_score":defaultdict(int),"per_subj_total":defaultdict(int)}
@@ -853,8 +883,43 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid=str(update.effective_user.id)
-    text=update.message.text
-    if text.startswith("/explain") or text.lower().startswith("explain"):
+    text=update.message.text.strip()
+    
+    # === BLUE MENU BUTTON HANDLER - Always visible ===
+    if text in ["🔵 MENU", "MENU", "Menu", "menu", "📚 Past Questions", "📝 Mock Exam", "💎 Premium", "📖 Past Questions"]:
+        if text in ["🔵 MENU", "MENU", "Menu", "menu"]:
+            m_text, m_kb = main_menu(uid)
+            await update.message.reply_text(m_text, reply_markup=m_kb, parse_mode="Markdown")
+            # Re-send blue menu keyboard to keep it visible
+            await update.message.reply_text("🔵 Menu always here 👇", reply_markup=BLUE_MENU_KEYBOARD)
+            return
+        elif text == "📚 Past Questions":
+            await update.callback_query if False else None
+            # Simulate past questions menu
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            buttons = [[InlineKeyboardButton(f"{SUBJECT_DISPLAY[s]}", callback_data=f"past_sub_{s}")] for s in ALL_SUBJECTS[:7]]
+            buttons.append([InlineKeyboardButton("🏠 MENU", callback_data="main_menu")])
+            await update.message.reply_text("📚 *Past Questions - Choose Subject:*", reply_markup=InlineKeyboardMarkup(buttons), parse_mode="Markdown")
+            await update.message.reply_text("🔵 Menu always here 👇", reply_markup=BLUE_MENU_KEYBOARD)
+            return
+        elif text == "📝 Mock Exam":
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("⚡ Quick Test 5Q", callback_data="mock_quick")],
+                [InlineKeyboardButton("📖 Subject Mock 40Q", callback_data="mock_subject_menu")],
+                [InlineKeyboardButton("🎯 Full JAMB 180Q", callback_data="mock_full_start")],
+                [InlineKeyboardButton("🏠 MENU", callback_data="main_menu")]
+            ])
+            await update.message.reply_text("📝 *Mock Exam*", reply_markup=kb, parse_mode="Markdown")
+            await update.message.reply_text("🔵 Menu always here 👇", reply_markup=BLUE_MENU_KEYBOARD)
+            return
+        elif text == "💎 Premium":
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            kb = InlineKeyboardMarkup([[InlineKeyboardButton(f"💎 Go Premium {PREMIUM_PRICE_TEXT}", callback_data="go_premium")]])
+            await update.message.reply_text(f"💎 Premium {PREMIUM_PRICE_TEXT}/month - Unlimited!", reply_markup=kb)
+            return
+    
+    if text.lower().startswith("/explain") or text.lower().startswith("explain"):
         await update.message.reply_text("🎙 Use [🎙 Explain with Voice] button after wrong answer")
         return
     if not can_use_tutor(uid):
@@ -940,17 +1005,50 @@ def fetch_all_route():
 def run_flask():
     flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT",5000)))
 
+async def set_blue_menu_button(app):
+    """Set the blue menu button inside Telegram chat"""
+    try:
+        await app.bot.set_chat_menu_button(menu_button=MenuButtonCommands(text="🔵 MENU"))
+        print("✅ Blue MENU button set in chat")
+    except Exception as e:
+        print(f"Menu button set failed: {e}")
+
 def main():
-    if os.getenv("RENDER"):
-        threading.Thread(target=run_flask, daemon=True).start()
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("menu", start))
-    app.add_handler(CommandHandler("help", start))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
-    print(f"v17.1 FINAL - Premium {PREMIUM_PRICE_TEXT} - Free {FREE_MOCK_QS_DAILY}/day + {FREE_TUTOR_PER_DAY} tutor/day - Refer {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days")
-    app.run_polling()
+    # Start Flask first for Render health check
+    threading.Thread(target=run_flask, daemon=True).start()
+    print(f"Flask started on port {os.environ.get('PORT', 5000)}")
+    
+    # Check token
+    if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN_HERE" or len(BOT_TOKEN) < 20:
+        print("❌ BOT_TOKEN not set! Set in Render Environment")
+        import time
+        while True:
+            time.sleep(60)
+    
+    try:
+        app = ApplicationBuilder().token(BOT_TOKEN).build()
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("menu", start))
+        app.add_handler(CommandHandler("help", start))
+        # Blue menu text handlers
+        app.add_handler(MessageHandler(filters.Regex("^(🔵 MENU|MENU|/menu|Menu)$"), start))
+        app.add_handler(MessageHandler(filters.Regex("^(📚 Past Questions)$"), lambda u,c: u.message.reply_text("📚 Use menu below:", reply_markup=main_menu(str(u.effective_user.id))[1])))
+        app.add_handler(CallbackQueryHandler(handle_callback))
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
+        
+        # Set blue menu button on startup
+        app.post_init = set_blue_menu_button
+        
+        print(f"v17.4 FINAL - Blue MENU + Fallback Qs - Premium {PREMIUM_PRICE_TEXT} - Free {FREE_MOCK_QS_DAILY}/day + {FREE_TUTOR_PER_DAY} tutor/day - Refer {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days")
+        print("🤖 Bot polling started with BLUE MENU button always visible")
+        app.run_polling()
+    except Exception as e:
+        print(f"❌ Bot failed: {e}")
+        import traceback
+        traceback.print_exc()
+        while True:
+            import time
+            time.sleep(60)
 
 if __name__=="__main__":
     main()
