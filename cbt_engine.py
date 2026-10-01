@@ -1,8 +1,7 @@
-```python
 """
-UTME BOT CBT ENGINE - PRO SYNCHRONOUS DIRECTORY STREAMER
-- Pulls questions on-demand from verified public past question repositories
-- Zero local disk footprint configurations prevents low memory crashes
+UTME BOT CBT ENGINE - DIRECTORY STREAMER PRO
+- Pure synchronous past questions streaming execution structures
+- Drops multi-thread loops to keep Render platform completely happy
 """
 
 import requests
@@ -41,7 +40,7 @@ class CBTEngine:
                         "id": q.get("id", int(time.time()) + idx),
                         "subject": subject,
                         "year": q.get("year", year or "Past JAMB Year"),
-                        "topic": "JAMB Syllabus core unit point focus",
+                        "topic": "JAMB Syllabus Core Unit Focus",
                         "question": q.get("question", "Question context unavailable."),
                         "options": {
                             "A": raw_opts.get("a", "Option A description text parameters mapping"),
