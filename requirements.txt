@@ -1,7 +1,8 @@
-# Fixed for Python 3.14.3 on Render - v17.2
+# v17.3 FIXED - Works on Python 3.14.3 - No Pillow build needed
 python-telegram-bot==21.10
 Flask==3.1.1
 requests==2.32.3
 gTTS==2.5.4
-Pillow==11.2.1
 python-dotenv==1.0.1
+# Pillow removed - optional feature, bot sends text share if missing
+# If you want image share, add Pillow==11.3.0 and set PYTHON_VERSION=3.11.11 in Render dashboard
