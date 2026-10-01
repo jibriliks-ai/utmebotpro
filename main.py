@@ -1,18 +1,17 @@
 """
-UTME SUCCESS MASTER BOT - PRODUCTION STABLE Build
-- Clean background loop handling via explicit native async run setups
-- Visual visual anchors for professional aesthetics
-- Strict enforcement of the 5-question freemium wall
+UTME SUCCESS MASTER BOT - RESILIENT PRODUCTION BUILD
+- Removed background threads to prevent Render early exit crashes
+- Synchronous direct request architecture
+- Built-in horizontal layout configurations for Telegram buttons
 """
 
 import os
 import json
 import time
 import uuid
-import threading
 import re
 import html
-import asyncio
+import requests
 from flask import Flask, request, jsonify, render_template_string, redirect
 
 try:
@@ -21,7 +20,7 @@ try:
 except ImportError:
     pass
 
-print("=== UTME SUCCESS BOT PREMIUM PRO ACTIVE ===")
+print("=== UTME SUCCESS BOT MASTER ENGINE BOOTING ===")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY", "").strip()
 PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
@@ -68,42 +67,19 @@ def is_premium(uid):
     if not ud: return False
     return time.time() < ud.get("expiry", 0)
 
-def get_premium_days(uid):
-    db = load_json(DB_FILE, {})
-    ud = db.get(str(uid))
-    if not ud: return 0
-    return max(0, int((ud.get("expiry", 0) - time.time()) / 86400))
-
-def grant_premium(uid, days=30, tx_ref=None):
-    db = load_json(DB_FILE, {})
-    expiry = time.time() + days * 24 * 60 * 60
-    db[str(uid)] = {
-        "user_id": str(uid), 
-        "expiry": expiry, 
-        "expiry_date": time.strftime("%Y-%m-%d", time.localtime(expiry)), 
-        "tx_ref": tx_ref,
-        "granted_at": time.time()
-    }
-    save_json(DB_FILE, db)
-    return expiry
-
-def save_profile(uid, user_obj):
+def save_profile(uid, first_name, username):
     profiles = load_json(PROFILES_FILE, {})
     uid_str = str(uid)
-    ex = profiles.get(uid_str, {})
     profiles[uid_str] = {
         "user_id": uid,
-        "first_name": getattr(user_obj, 'first_name', ex.get('first_name', 'Student')),
-        "username": getattr(user_obj, 'username', ex.get('username', '')),
+        "first_name": first_name or 'Student',
+        "username": username or '',
         "last_seen": time.time(),
         "is_premium": is_premium(uid)
     }
     save_json(PROFILES_FILE, profiles)
 
-def get_referral_count(uid):
-    return len(load_json(REFERRAL_FILE, {}).get(str(uid), []))
-
-# ===== EXPLICIT FREEMIUM VERIFICATIONS =====
+# ===== FREEMIUM ACCESS RULES =====
 FREE_MOCK_QS = 5
 FREE_MOCK_PER_DAY = 1
 FREE_TUTOR_PER_DAY = 2
@@ -150,14 +126,6 @@ def inc_tutor(uid):
     data[str(uid)] = ud
     save_json(USAGE_FILE, data)
 
-def get_free_limit_keyboard(uid):
-    upgrade_url = f"{RENDER_URL}/upgrade/{uid}"
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("💎 Upgrade to Premium Tier", url=upgrade_url)],
-        [InlineKeyboardButton("👥 Referral Program", callback_data="menu_invite")],
-        [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")]
-    ])
-
 def update_stats(uid, subject, correct, total, jamb_score, name=""):
     stats = load_json(STATS_FILE, {})
     u = stats.get(str(uid), {"best_score": 0, "name": name, "total_exams": 0})
@@ -167,65 +135,105 @@ def update_stats(uid, subject, correct, total, jamb_score, name=""):
     save_json(STATS_FILE, stats)
     return u
 
-# FLUTTERWAVE GATEWAY INTEGRATION
-def create_flutterwave_payment(uid):
-    if not FLW_SECRET_KEY: return None, "Configuration key missing"
-    import requests
-    tx_ref = f"utme-{uid}-{int(time.time())}"
-    url = "https://flutterwave.com"
-    headers = {"Authorization": f"Bearer {FLW_SECRET_KEY}", "Content-Type": "application/json"}
-    payload = {
-        "tx_ref": tx_ref, "amount": PREMIUM_PRICE, "currency": "NGN",
-        "redirect_url": f"{RENDER_URL}/verify/{tx_ref}?uid={uid}",
-        "payment_options": "card,banktransfer,ussd",
-        "customer": {"email": f"student_{uid}@utmebot.com", "name": "JAMB Candidate"},
-        "customizations": {"title": "UTME Success Premium", "description": "30 Days Full Master Access"}
-    }
+# NATIVE HTTP TELEGRAM REQUEST MESSENGER
+def send_tg_message(chat_id, text, reply_markup=None):
+    url = f"https://telegram.org{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
     try:
-        res = requests.post(url, json=payload, headers=headers, timeout=15)
-        d = res.json()
-        if d.get("status") == "success": return d["data"]["link"], tx_ref
-        return None, d.get("message")
-    except Exception as e: return None, str(e)
+        requests.post(url, json=payload, timeout=10)
+    except Exception as e:
+        print(f"Telegram Delivery Timeout Warning: {e}", flush=True)
 
-# FLASK INSTANCE
+# CORE DATA ENGINE INSTANTIATION
+from cbt_engine import CBTEngine
+cbt = CBTEngine()
+
+def format_question(q, idx, total):
+    header = f"<b>📝 Question {idx+1}/{total}</b> | {q.get('subject')} | {q.get('year')}\n\n"
+    body = f"<b>{html.escape(q.get('question', ''))}</b>\n\n"
+    opts_block = ""
+    for letter, text in q.get('options', {}).items():
+        opts_block += f"<b>{letter}</b>: {html.escape(str(text))}\n"
+    return header + body + opts_block
+
+def get_main_menu_markup():
+    return {
+        "inline_keyboard": [
+            [{"text": "📝 Take Mock Exam", "callback_data": "menu_mock"}, {"text": "📚 Past Questions", "callback_data": "menu_past"}],
+            [{"text": "💬 Ask AI Tutor", "callback_data": "menu_tutor"}, {"text": "📊 Performance Score", "callback_data": "menu_score"}],
+            [{"text": "📖 JAMB Syllabus", "callback_data": "menu_syllabus"}, {"text": "👥 Invite Friends", "callback_data": "menu_invite"}],
+            [{"text": "💎 Go Premium Access", "callback_data": "menu_premium"}]
+        ]
+    }
+
+def get_options_markup(q, current_idx):
+    row = [{"text": f"Option {k}", "callback_data": f"ans_{k}"} for k in q.get('options', {}).keys()]
+    return {
+        "inline_keyboard": [
+            row,
+            [{"text": "🛑 Submit Exam", "callback_data": "submit"}],
+            [{"text": "🔙 Back to Main Menu", "callback_data": "menu_main"}]
+        ]
+    }
+
+# FLASK CORE INSTANCE
 flask_app = Flask(__name__)
 
 @flask_app.route("/")
-def home(): return jsonify({"status": "UTME Bot Engine Active", "total_questions": len(cbt.db)})
+def home():
+    return jsonify({"status": "UTME Bot Engine Safe Mode Active", "total_questions": len(cbt.db)})
 
-@flask_app.route("/upgrade/<uid>")
-def upgrade_page(uid):
-    pay_link, _ = create_flutterwave_payment(uid)
-    return render_template_string("""
-    <!DOCTYPE html><html><head><title>Premium Upgrade</title><meta name='viewport' content='width=device-width, initial-scale=1'>
-    <style>body{font-family:Arial;background:#0f172a;color:white;text-align:center;padding:40px} .card{max-width:440px;margin:0 auto;background:#1e293b;padding:30px;border-radius:16px;border:1px solid #334155} .btn{display:block;padding:16px;background:#eab308;color:#0f172a;text-decoration:none;border-radius:8px;font-weight:bold;margin-top:20px}</style></head>
-    <body><div class='card'><h2>🎓 UTME Success Premium</h2><h3>N{{price}} / Month</h3><p align='left'>✅ Unlimited 180Q Exam Combinations<br>✅ Unlimited Smart AI Tutor Explanations<br>✅ High-Speed Audio Explanations</p><a href='{{link}}' class='btn'>Proceed to Secure Checkout</a></div></body></html>
-    """, price=PREMIUM_PRICE, link=pay_link or "#", uid=uid)
-
-@flask_app.route("/verify/<tx_ref>")
-def verify_page(tx_ref):
-    uid = request.args.get('uid', '0')
-    grant_premium(uid, 30, tx_ref)
-    return "<h1>✅ Payment Successfully Verified!</h1><p>Return to the Telegram bot and enter /start to synchronize your account changes.</p>"
-
-# AI REASONING LAYER
-def get_tutor_answer(q_text):
-    if DEEPSEEK_API_KEY:
-        try:
-            import requests
-            url = "https://deepseek.com"
-            headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": "You are a professional JAMB expert tutor. Provide accurate, clear, and high-yield structured past question answers with a short, simple explanation for high school students to read quickly."},
-                    {"role": "user", "content": q_text}
-                ],
-                "max_tokens": 400, "temperature": 0.2
-            }
-            r = requests.post(url, json=payload, headers=headers, timeout=15)
-            if r.status_code == 200: return r.json()['choices']['message']['content'].strip()
-        except: pass
-    return "💡 <b>Educational Insight:</b> Ensure to reference your official JAMB recommended syllabus text. Break down the terms systematically to eliminate incorrect options logically."
-
+@flask_app.route("/telegram", methods=["POST"])
+def webhook_endpoint():
+    """Processes incoming data directly from Telegram via webhooks, completely eliminating thread overhead [14]."""
+    data = request.get_json(force=True)
+    
+    if "message" in data:
+        msg = data["message"]
+        chat_id = msg["chat"]["id"]
+        text = msg.get("text", "").strip()
+        first_name = msg["from"].get("first_name", "Student")
+        username = msg["from"].get("username", "")
+        
+        if text.startswith("/start"):
+            save_profile(chat_id, first_name, username)
+            status_tag = "💎 Premium Tier" if is_premium(chat_id) else "🆓 Free Access Tier"
+            welcome = f"🎓 <b>Welcome to JAMB UTME Success Master Bot Pro!</b>\n\n⚙️ Account Status: <b>{status_tag}</b>\n\nSelect a feature block option below to start your exam practice loops:"
+            send_tg_message(chat_id, welcome, reply_markup=get_main_menu_markup())
+            
+    elif "callback_query" in data:
+        query = data["callback_query"]
+        chat_id = query["message"]["chat"]["id"]
+        cb_data = query["data"]
+        uid = query["from"]["id"]
+        
+        if cb_data == "menu_main":
+            status_tag = "💎 Premium Tier" if is_premium(uid) else "🆓 Free Access Tier"
+            send_tg_message(chat_id, f"🎓 <b>Main Dashboard Workspace:</b>\n\nStatus: <b>{status_tag}</b>", reply_markup=get_main_menu_markup())
+            
+        elif cb_data == "menu_mock":
+            ok, msg = can_mock(uid)
+            if not ok:
+                send_tg_message(chat_id, msg)
+                return "OK", 200
+            limit = 40 if is_premium(uid) else FREE_MOCK_QS
+            if not is_premium(uid): inc_mock(uid)
+            q, total = cbt.start_mock(uid, ["English", "Mathematics"], limit_per_subject=limit//2)
+            if q:
+                send_tg_message(chat_id, format_question(q, 0, total), reply_markup=get_options_markup(q, 0))
+                
+        elif cb_data == "menu_past":
+            row1 = [{"text": s[:4], "callback_data": f"past_{s}"} for s in SUBJECTS[:5]]
+            row2 = [{"text": s[:4], "callback_data": f"past_{s}"} for s in SUBJECTS[5:]]
+            markup = {"inline_keyboard": [row1, row2, [{"text": "🔙 Back", "callback_data": "menu_main"}]]}
+            send_tg_message(chat_id, "📚 <b>Select Past Question Subject Array:</b>", reply_markup=markup)
+            
+        elif cb_data.startswith("past_"):
+            subj = cb_data.replace("past_", "")
+            ok, msg = can_mock(uid)
+            if not ok:
+                send_tg_message(chat_id, msg)
+                return "OK", 200
+            limit = 40 if is_premium(uid) else FREE_MOCK_QS
