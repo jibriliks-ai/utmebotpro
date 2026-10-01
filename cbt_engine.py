@@ -1,9 +1,8 @@
 ```python
 """
-UTME BOT CBT ENGINE - DIRECTORY STREAMING v28
-- Connects directly to open-access JAMB past question directories
-- Streams authentic questions on-demand from 2010 to 2024
-- Removed asynchronous await errors to ensure thread stability
+UTME BOT CBT ENGINE - SAFE SYNC EDITIONS
+- Pure synchronous past questions streaming execution structures
+- Drops multi-thread loops to keep Render platform completely happy
 """
 
 import requests
@@ -12,12 +11,11 @@ import time
 
 class CBTEngine:
     def __init__(self):
-        self.db = ["Active API Sync Mode"]
-        print("📦 CBTEngine Online Directory Streamer Activated.", flush=True)
+        self.db = ["Active Live API Mode"]
+        print("📦 CBTEngine Cloud Directory Link Stabilized.", flush=True)
         self.active_exams = {}
 
     def fetch_exact_jamb_questions(self, subject, limit=5, year=None):
-        """Queries the open-source past question directories synchronously."""
         api_subject = subject.lower().strip()
         url = f"https://aloc.ng{api_subject}&limit={limit}"
         
@@ -30,7 +28,7 @@ class CBTEngine:
         }
         
         try:
-            response = requests.get(url, headers=headers, timeout=12)
+            response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 raw_questions = data.get("data", [])
@@ -43,21 +41,21 @@ class CBTEngine:
                         "id": q.get("id", int(time.time()) + idx),
                         "subject": subject,
                         "year": q.get("year", year or "Past JAMB Year"),
-                        "topic": "JAMB Curriculum Core Focus",
-                        "question": q.get("question", "Question text description parameters un-extracted."),
+                        "topic": "JAMB Core Unit Mapped Focus",
+                        "question": q.get("question", "Question context unavailable."),
                         "options": {
-                            "A": raw_opts.get("a", "Option A choice data"),
-                            "B": raw_opts.get("b", "Option B choice data"),
-                            "C": raw_opts.get("c", "Option C choice data"),
-                            "D": raw_opts.get("d", "Option D choice data")
+                            "A": raw_opts.get("a", "Option A descriptive index choice details text data line item parameters value description text mapping"),
+                            "B": raw_opts.get("b", "Option B descriptive index choice details text data line item parameters value description text mapping"),
+                            "C": raw_opts.get("c", "Option C descriptive index choice details text data line item parameters value description text mapping"),
+                            "D": raw_opts.get("d", "Option D descriptive index choice details text data line item parameters value description text mapping")
                         },
                         "answer": str(q.get("answer", "A")).upper().strip(),
-                        "explanation": q.get("solution", "Review standard structural syllabus reference textbooks.")
+                        "explanation": q.get("solution", "Review official syllabus reference guides.")
                     }
                     clean_list.append(clean_q)
                 return clean_list
         except Exception as e:
-            print(f"⚠️ External directory sync skip loop variance: {e}", flush=True)
+            print(f"⚠️ Cloud sync skip exception parameter: {e}", flush=True)
             
         return []
 
@@ -71,10 +69,10 @@ class CBTEngine:
         
         if not all_selected:
             all_selected = [{
-                "id": 77500, "subject": "General", "year": "2024", "topic": "Network Sync",
-                "question": "A network connection timeout occurred while syncing the live directory. Choose 'Retry Sync' to re-fetch questions.",
-                "options": {"A": "Retry Sync", "B": "Check Device Connection", "C": "Upgrade Premium Status", "D": "Contact Admin"},
-                "answer": "A", "explanation": "Stabilizing device connection logs allows the streamer to pull thousands of real past questions."
+                "id": 88001, "subject": "General", "year": "2024", "topic": "Network Delay",
+                "question": "The public archive took too long to stream. Check your connection or retry.",
+                "options": {"A": "Retry Sync Loop", "B": "Check Network Status", "C": "Go Premium Tier", "D": "Contact Support"},
+                "answer": "A", "explanation": "Stabilizing server latency ensures full past questions are pulled."
             }]
             
         self.active_exams[user_id] = {
