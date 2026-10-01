@@ -1,6 +1,6 @@
 import os
-print("🚀 UTME Bot v17.3 FINAL Starting...")
-print(f"BOT_TOKEN set: {bool(os.getenv('BOT_TOKEN'))} | PORT={os.getenv('PORT','5000')}")
+print("🚀 UTME Bot v17.4 FINAL - Blue MENU + Fallback Qs - Advertising Ready")
+print(f"BOT_TOKEN set: {bool(os.getenv('BOT_TOKEN'))} | ALOC set: {bool(os.getenv('ALOC_ACCESS_TOKEN'))} | PORT={os.getenv('PORT','5000')}")
 try:
     from main import main
     main()
@@ -12,7 +12,7 @@ except Exception as e:
     app = Flask(__name__)
     @app.route("/")
     def home():
-        return f"Bot failed: {e}. Check BOT_TOKEN env var in Render."
+        return f"Bot failed: {e}. Check BOT_TOKEN env var."
     @app.route("/health")
     def health():
         return {"status": "error", "error": str(e)}
