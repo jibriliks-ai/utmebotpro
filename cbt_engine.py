@@ -1,9 +1,9 @@
-``python
+```python
 """
 UTME BOT CBT ENGINE - DIRECTORY STREAMING v28
 - Connects directly to open-access JAMB past question directories
 - Streams authentic questions on-demand from 2010 to 2024
-- Bypasses local storage limits to avoid Render memory crashes
+- Removed asynchronous await errors to ensure thread stability
 """
 
 import requests
@@ -12,19 +12,13 @@ import time
 
 class CBTEngine:
     def __init__(self):
-        # Initialized cleanly without storage payload footprints
         self.db = ["Active API Sync Mode"]
         print("📦 CBTEngine Online Directory Streamer Activated.", flush=True)
         self.active_exams = {}
 
     def fetch_exact_jamb_questions(self, subject, limit=5, year=None):
-        """
-        Directly queries open-source archives to pull real questions.
-        Translates foreign response items into your bot's formatting arrays.
-        """
+        """Queries the open-source past question directories synchronously."""
         api_subject = subject.lower().strip()
-        
-        # Free open-access directory endpoint for Nigerian educational systems
         url = f"https://aloc.ng{api_subject}&limit={limit}"
         
         if year and str(year).lower() != "all":
@@ -45,7 +39,6 @@ class CBTEngine:
                 for idx, q in enumerate(raw_questions):
                     raw_opts = q.get("option", {})
                     
-                    # Force conversion into your bot's horizontal keyboard option configurations
                     clean_q = {
                         "id": q.get("id", int(time.time()) + idx),
                         "subject": subject,
@@ -70,7 +63,6 @@ class CBTEngine:
 
     def start_mock(self, user_id, subjects, duration=45*60, limit_per_subject=5, year=None):
         all_selected = []
-        
         for subj in subjects:
             qs = self.fetch_exact_jamb_questions(subject=subj, limit=limit_per_subject, year=year)
             all_selected.extend(qs)
@@ -78,10 +70,9 @@ class CBTEngine:
         random.shuffle(all_selected)
         
         if not all_selected:
-            # Resilient data capsule fallback in case of internet timeouts
             all_selected = [{
-                "id": 77500, "subject": subjects[0] if subjects else "General", "year": "2024", "topic": "Network Sync",
-                "question": f"A network connection timeout occurred while syncing the live 2010–2024 directory dataset for {subjects}. Choose 'Retry Sync' to re-fetch questions.",
+                "id": 77500, "subject": "General", "year": "2024", "topic": "Network Sync",
+                "question": "A network connection timeout occurred while syncing the live directory. Choose 'Retry Sync' to re-fetch questions.",
                 "options": {"A": "Retry Sync", "B": "Check Device Connection", "C": "Upgrade Premium Status", "D": "Contact Admin"},
                 "answer": "A", "explanation": "Stabilizing device connection logs allows the streamer to pull thousands of real past questions."
             }]
@@ -94,7 +85,7 @@ class CBTEngine:
             "start_time": time.time(),
             "duration": duration
         }
-        return all_selected[0], len(all_selected)
+        return all_selected[0] if all_selected else None, len(all_selected)
 
     def get_current_question(self, user_id):
         exam = self.active_exams.get(user_id)
