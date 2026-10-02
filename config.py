@@ -1,8 +1,6 @@
 """
-config.py - v23 FLAWLESS - Flutterwave + 2 Plans
-Monthly ₦2000 + 6 Months ₦6000
-Free: 5 mock/day, 10 tutor/day
-Refer: 3 = 7 days premium
+config.py - v23 FLAWLESS - FLUTTERWAVE + 2 PLANS + 7891 Qs
+Monthly ₦2000 + 6 Months ₦6000 - You use Flutterwave not Paystack
 """
 import os
 
@@ -13,35 +11,34 @@ PAYMENT_URL = os.getenv("PAYMENT_URL", "https://your-app.onrender.com")
 
 ALOC_ACCESS_TOKEN = os.getenv("ALOC_ACCESS_TOKEN", "")
 
-# PRICING - 2 PLANS AS REQUESTED
 PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
 PREMIUM_PRICE_TEXT = f"₦{PREMIUM_PRICE}"
 PREMIUM_6MONTHS_PRICE = int(os.getenv("PREMIUM_6MONTHS_PRICE", "6000"))
 PREMIUM_6MONTHS_TEXT = f"₦{PREMIUM_6MONTHS_PRICE}"
-PREMIUM_6MONTHS_DAYS = 180
 FREE_MOCK_QS_DAILY = int(os.getenv("FREE_MOCK_QS_DAILY", "5"))
 FREE_TUTOR_PER_DAY = int(os.getenv("FREE_TUTOR_PER_DAY", "10"))
 PREMIUM_DAYS = int(os.getenv("PREMIUM_DAYS", "30"))
+PREMIUM_6MONTHS_DAYS = int(os.getenv("PREMIUM_6MONTHS_DAYS", "180"))
 
 REFERRAL_REQUIRED = int(os.getenv("REFERRAL_REQUIRED", "3"))
 REFERRAL_REWARD_DAYS = int(os.getenv("REFERRAL_REWARD_DAYS", "7"))
 
-# PAYSTACK (fallback)
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY", "")
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")
 
-# FLUTTERWAVE - PRIMARY (You use Flutterwave)
 FLW_PUBLIC_KEY = os.getenv("FLW_PUBLIC_KEY", "")
 FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY", "")
 FLW_SECRET_HASH = os.getenv("FLW_SECRET_HASH", "utme_webhook_hash_123")
 FLW_ENCRYPTION_KEY = os.getenv("FLW_ENCRYPTION_KEY", "")
 FLUTTERWAVE_PAYMENT_LINK = os.getenv("FLUTTERWAVE_PAYMENT_LINK", "")
+FLUTTERWAVE_6MONTHS_LINK = os.getenv("FLUTTERWAVE_6MONTHS_LINK", "")
 
 CHANNEL_ID = os.getenv("CHANNEL_ID", "")
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "UTMESUCCESS")
 
 USER_DATA_FILE = os.getenv("USER_DATA_FILE", "user_data.json")
+
 YEARS = list(range(2010, 2025))
 ALL_SUBJECTS = ["english","mathematics","biology","physics","chemistry","economics","government","commerce","accounting","literature","crk"]
 
-print(f"Config v23 FLAWLESS: Monthly {PREMIUM_PRICE_TEXT} + 6 Months {PREMIUM_6MONTHS_TEXT} | Free {FREE_MOCK_QS_DAILY} mock/day | Refer {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days")
+print(f"Config v23 FLAWLESS: Monthly {PREMIUM_PRICE_TEXT} + 6 Months {PREMIUM_6MONTHS_TEXT} | Free {FREE_MOCK_QS_DAILY} mock/day | Refer {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days | 7891 Qs")
