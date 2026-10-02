@@ -1,146 +1,94 @@
-"""
-cbt_engine.py - v23 FLAWLESS - COMPLETE 7891 Qs + ANTI-REPEAT + FLUTTERWAVE
-- Complete database: 7891 Qs + your 5x1000 fresh uploads = 12k+ Qs
-- Includes CRK 1056 Qs + all 11 subjects
-- Mock NEVER repeats same question until all exhausted - strong script
-- Full text dedup (not 80 chars) - stops repetition
-"""
-import random, os, json
+import json
+import random
 from pathlib import Path
 
-try:
-    from config import ALOC_ACCESS_TOKEN, YEARS, ALL_SUBJECTS
-except:
-    ALOC_ACCESS_TOKEN = os.getenv("ALOC_ACCESS_TOKEN", "")
-    YEARS = list(range(2010, 2025))
-    ALL_SUBJECTS = ["english","mathematics","biology","physics","chemistry","economics","government","commerce","accounting","literature","crk"]
+BANK_FILE = Path("questions_clean.json")
 
-SUBJECT_DISPLAY = {
-    "english":"📖 English","mathematics":"📐 Maths","biology":"🧬 Biology","physics":"⚛️ Physics","chemistry":"🧪 Chemistry",
-    "economics":"💰 Economics","government":"🏛️ Government","commerce":"🏪 Commerce","accounting":"📊 Accounting",
-    "literature":"📚 Literature","crk":"✝️ CRK"
-}
-
-LOCAL_DATABANK = {}
 ALL_QS = []
-DATABANK_DIR = Path(__file__).parent / "databank"
-CORE_SUBJECTS = ["accounting","biology","chemistry","commerce","crk","economics","english","government","literature","mathematics","physics"]
+LOCAL_DATABANK = {}
 
-if DATABANK_DIR.exists():
-    all_path = DATABANK_DIR / "all_questions.json"
-    if all_path.exists():
-        try:
-            raw = json.loads(all_path.read_text())
-            seen = {}
-            deduped = []
-            for q in raw:
-                key = ' '.join(q.get("question","").lower().split())
-                if key and key not in seen and len(key) > 10:
-                    seen[key] = True
-                    deduped.append(q)
-            ALL_QS = deduped
-            print(f"✅ Loaded all_questions.json: {len(ALL_QS)} Qs COMPLETE")
-            for subj in CORE_SUBJECTS:
-                LOCAL_DATABANK[subj] = [qq for qq in ALL_QS if qq.get("subject_key")==subj]
-        except Exception as e:
-            print(f"Error: {e}")
+def _normalize(q):
+    """Convert clean JSON record into format the bot expects."""
+    options = q.get("options") or []
+    # Handle both new 'options' array and old option_a/b/c/d keys
+    opt_a = q.get("option_a") or (options[0] if len(options) > 0 else "")
+    opt_b = q.get("option_b") or (options[1] if len(options) > 1 else "")
+    opt_c = q.get("option_c") or (options[2] if len(options) > 2 else "")
+    opt_d = q.get("option_d") or (options[3] if len(options) > 3 else "")
+    
+    answer = q.get("answer_letter") or q.get("answer") or ""
+    
+    return {
+        "id": q.get("id") or q.get("source_id") or "",
+        "subject": q.get("subject", ""),
+        "subject_key": q.get("subject_key", ""),
+        "year": q.get("year", ""),
+        "topic": q.get("topic", ""),
+        "question": q.get("question", ""),
+        "option_a": opt_a,
+        "option_b": opt_b,
+        "option_c": opt_c,
+        "option_d": opt_d,
+        "answer": answer,
+        "explanation": q.get("explanation", ""),
+    }
 
-if not ALL_QS:
-    for qs in LOCAL_DATABANK.values():
-        ALL_QS.extend(qs)
+def load_bank():
+    global ALL_QS, LOCAL_DATABANK
+    if not BANK_FILE.exists():
+        print(f"[cbt_engine] No {BANK_FILE} found")
+        return
+    try:
+        data = json.loads(BANK_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"[cbt_engine] Failed to load: {e}")
+        return
+    ALL_QS = [_normalize(q) for q in data]
+    # Group by subject_key
+    for q in ALL_QS:
+        key = q.get("subject_key") or q.get("subject", "").lower()
+        LOCAL_DATABANK.setdefault(key, []).append(q)
+    print(f"[cbt_engine] Loaded {len(ALL_QS)} questions across {len(LOCAL_DATABANK)} subjects")
 
-def get_local_questions(subject, year=None, limit=40, exclude_ids=None, exclude_questions=None):
-    """100% FLAWLESS ANTI-REPEAT"""
-    subj = subject.lower().strip()
-    qs = LOCAL_DATABANK.get(subj, []) or [q for q in ALL_QS if q.get("subject_key")==subj]
-    if exclude_ids:
-        filtered = [q for q in qs if q.get("id") not in set(exclude_ids)]
-        if len(filtered) >= min(limit, 3):
-            qs = filtered
-    if exclude_questions:
-        exclude_set = set([' '.join(eq.lower().split()) for eq in exclude_questions])
-        filtered = [q for q in qs if ' '.join(q.get("question","").lower().split()) not in exclude_set]
-        if len(filtered) >= min(limit, 3):
-            qs = filtered
-    random.shuffle(qs)
-    return qs[:limit]
+load_bank()
 
-def get_mixed_questions_for_mock(limit=5, exclude_ids=None, exclude_questions=None):
-    subjects_pool = ["english","mathematics","biology","physics","chemistry","economics","government","commerce","accounting","literature","crk"]
-    random.shuffle(subjects_pool)
-    all_candidates = []
-    for subj in subjects_pool:
-        subj_qs = get_local_questions(subj, None, 4, exclude_ids=exclude_ids, exclude_questions=exclude_questions)
-        all_candidates.extend(subj_qs)
-    random.shuffle(all_candidates)
-    return all_candidates[:limit]
-
-def get_full_mock_questions(exclude_ids=None, exclude_questions=None):
-    qs = []
-    used_ids = set()
-    used_texts = set()
-    eng_qs = get_local_questions("english", None, 70, exclude_ids=exclude_ids, exclude_questions=exclude_questions)
-    for q in eng_qs:
-        q_text = ' '.join(q.get("question","").lower().split())
-        if q_text not in used_texts and q.get("id") not in used_ids:
-            qs.append(q)
-            used_ids.add(q.get("id"))
-            used_texts.add(q_text)
-        if len(qs) >= 60:
-            break
-    other_subjects = ["mathematics","biology","physics","chemistry","economics","government"]
-    random.shuffle(other_subjects)
-    for subj in other_subjects[:3]:
-        subj_qs = get_local_questions(subj, None, 50, exclude_ids=list(exclude_ids or [])+list(used_ids), exclude_questions=list(exclude_questions or [])+list(used_texts))
-        for q in subj_qs:
-            q_text = ' '.join(q.get("question","").lower().split())
-            if q_text not in used_texts and q.get("id") not in used_ids:
-                qs.append(q)
-                used_ids.add(q.get("id"))
-                used_texts.add(q_text)
-            if len(qs) >= 180:
-                break
-        if len(qs) >= 180:
-            break
-    if len(qs) < 180:
-        remaining = 180 - len(qs)
-        all_remaining = [q for q in ALL_QS if q.get("id") not in used_ids and ' '.join(q.get("question","").lower().split()) not in used_texts]
-        random.shuffle(all_remaining)
-        qs.extend(all_remaining[:remaining])
-    random.shuffle(qs)
-    return qs[:180]
+def format_question(q, i, total):
+    lines = [f"Q{i}/{total}", q.get("question", "")]
+    if q.get("option_a"): lines.append(f"A) {q['option_a']}")
+    if q.get("option_b"): lines.append(f"B) {q['option_b']}")
+    if q.get("option_c"): lines.append(f"C) {q['option_c']}")
+    if q.get("option_d"): lines.append(f"D) {q['option_d']}")
+    return "\n".join(lines)
 
 def search_databank(query, subject=None, limit=5):
-    keywords = [w for w in query.lower().split() if len(w)>2][:6]
-    if not keywords:
+    """Simple keyword search over question text."""
+    q = (query or "").lower().strip()
+    if not q:
         return []
-    pool = [q for q in ALL_QS if q.get("subject_key")==subject.lower()] if subject else ALL_QS
-    results = []
-    for q in pool:
-        q_text = (q.get("question","")+" "+q.get("topic","")+" "+q.get("explanation","")).lower()
-        score = sum(2 if kw in q.get("question","").lower() else 1 for kw in keywords if kw in q_text)
-        if score>0:
-            results.append((score,q))
-    results.sort(key=lambda x: x[0], reverse=True)
-    return [r[1] for r in results[:limit]]
+    pool = LOCAL_DATABANK.get(subject, []) if subject else ALL_QS
+    words = [w for w in q.split() if len(w) > 2]
+    scored = []
+    for item in pool:
+        text = item.get("question", "").lower()
+        score = sum(1 for w in words if w in text)
+        if score > 0:
+            scored.append((score, item))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [item for _, item in scored[:limit]]
 
-def get_random_question(subject=None, exclude_ids=None):
-    pool = [q for q in ALL_QS if q.get("subject_key")==subject.lower()] if subject else ALL_QS
-    if exclude_ids:
-        filtered = [q for q in pool if q.get("id") not in set(exclude_ids)]
-        if filtered:
-            pool = filtered
+def get_random_question(subject=None):
+    pool = LOCAL_DATABANK.get(subject, []) if subject else ALL_QS
     return random.choice(pool) if pool else None
 
-class ALOCFetcher:
-    def fetch(self, subject, year=None, limit=40, exclude_ids=None, exclude_questions=None):
-        return get_local_questions(subject, year, limit, exclude_ids, exclude_questions)
+class _Fetcher:
+    def fetch(self, subject, year=None, limit=40):
+        pool = LOCAL_DATABANK.get(subject, [])
+        if not pool:
+            # Fallback: try matching by subject text
+            pool = [q for q in ALL_QS if subject.lower() in q.get("subject", "").lower()]
+        if not pool:
+            return []
+        # Prefer unused
+        return random.sample(pool, min(limit, len(pool)))
 
-fetcher = ALOCFetcher()
-
-def format_question(q, idx, total):
-    subj = q.get('subject','JAMB')
-    year = q.get('year','')
-    topic = q.get('topic','')
-    header = f"Q{idx}/{total} | {subj} {year} {('- '+topic) if topic and topic!='General' else ''}".strip()
-    return f"{header}\n\n{q.get('question')}\n\nA) {q.get('option_a')}\nB) {q.get('option_b')}\nC) {q.get('option_c')}\nD) {q.get('option_d')}"
+fetcher = _Fetcher()
