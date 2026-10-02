@@ -1,18 +1,23 @@
 """
-UTME Success Bot v21 PROFESSIONAL - Mock FIXED + Tutor 200% Smart + Voice + Viral Invite
-Works out of the box with cbt_engine.py + questions_clean.json
+UTME Success Bot v24 PROFESSIONAL
+- Two-tier premium (Monthly + 6-Month) via Flutterwave
+- cbt_engine databank + Tutor + Voice + Viral invite
+- Single source of truth: config.py
+- Markdown-safe on every dynamic string
 """
 import os, json, random, time, threading, hashlib, asyncio, re
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from flask import Flask, render_template_string, jsonify
+
+from flask import Flask, render_template_string, jsonify, request
+
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
-    ReplyKeyboardMarkup, KeyboardButton, MenuButtonCommands, BotCommand
+    ReplyKeyboardMarkup, KeyboardButton, MenuButtonCommands, BotCommand,
 )
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackQueryHandler,
-    MessageHandler, filters, ContextTypes
+    MessageHandler, filters, ContextTypes,
 )
 
 # ---------- Optional TTS ----------
@@ -22,33 +27,46 @@ try:
 except Exception:
     HAS_TTS = False
 
-# ---------- Config ----------
+# ---------- Config (single source of truth) ----------
 try:
     from config import (
-        BOT_TOKEN, BOT_USERNAME, ADMIN_ID, PAYMENT_URL,
+        BOT_TOKEN, BOT_USERNAME, ADMIN_ID, PAYMENT_URL, PORT,
         PREMIUM_PRICE, PREMIUM_PRICE_TEXT,
+        PREMIUM_6MONTHS_PRICE, PREMIUM_6MONTHS_TEXT,
+        PREMIUM_DAYS, PREMIUM_6MONTHS_DAYS,
         FREE_MOCK_QS_DAILY, FREE_TUTOR_PER_DAY,
-        REFERRAL_REQUIRED, REFERRAL_REWARD_DAYS, ALL_SUBJECTS,
+        REFERRAL_REQUIRED, REFERRAL_REWARD_DAYS,
+        CHANNEL_ID, CHANNEL_USERNAME,
+        USER_DATA_FILE,
+        FLUTTERWAVE_PAYMENT_LINK, FLUTTERWAVE_6MONTHS_LINK,
+        ALL_SUBJECTS,
     )
-except Exception:
+except Exception as _e:
+    print(f"[WARN] config.py not found or incomplete ({_e}); using env-only fallback")
     BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
     BOT_USERNAME = os.getenv("BOT_USERNAME", "YourBot")
     ADMIN_ID = os.getenv("ADMIN_ID", "")
     PAYMENT_URL = os.getenv("PAYMENT_URL", "https://your-app.onrender.com")
-    PREMIUM_PRICE = 2000
-    PREMIUM_PRICE_TEXT = "₦2000"
-    FREE_MOCK_QS_DAILY = 5
-    FREE_TUTOR_PER_DAY = 10
-    REFERRAL_REQUIRED = 3
-    REFERRAL_REWARD_DAYS = 7
+    PORT = int(os.getenv("PORT", "5000"))
+    PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
+    PREMIUM_PRICE_TEXT = f"\u20a6{PREMIUM_PRICE}"
+    PREMIUM_6MONTHS_PRICE = int(os.getenv("PREMIUM_6MONTHS_PRICE", "6000"))
+    PREMIUM_6MONTHS_TEXT = f"\u20a6{PREMIUM_6MONTHS_PRICE}"
+    PREMIUM_DAYS = int(os.getenv("PREMIUM_DAYS", "30"))
+    PREMIUM_6MONTHS_DAYS = int(os.getenv("PREMIUM_6MONTHS_DAYS", "180"))
+    FREE_MOCK_QS_DAILY = int(os.getenv("FREE_MOCK_QS_DAILY", "5"))
+    FREE_TUTOR_PER_DAY = int(os.getenv("FREE_TUTOR_PER_DAY", "10"))
+    REFERRAL_REQUIRED = int(os.getenv("REFERRAL_REQUIRED", "3"))
+    REFERRAL_REWARD_DAYS = int(os.getenv("REFERRAL_REWARD_DAYS", "7"))
+    CHANNEL_ID = os.getenv("CHANNEL_ID", "")
+    CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "UTMESUCCESS")
+    USER_DATA_FILE = os.getenv("USER_DATA_FILE", "user_data.json")
+    FLUTTERWAVE_PAYMENT_LINK = os.getenv("FLUTTERWAVE_PAYMENT_LINK", "")
+    FLUTTERWAVE_6MONTHS_LINK = os.getenv("FLUTTERWAVE_6MONTHS_LINK", "")
     ALL_SUBJECTS = [
         "english", "mathematics", "biology", "physics", "chemistry",
-        "economics", "government", "commerce", "accounting",
-        "literature", "crk", "geography", "civic", "history"
+        "economics", "government", "commerce", "accounting", "literature",
     ]
-
-CHANNEL_ID = os.getenv("CHANNEL_ID", "")
-CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "UTMESUCCESS")
 
 # ---------- Subject display ----------
 SUBJECT_DISPLAY = {
@@ -68,7 +86,7 @@ SUBJECT_DISPLAY = {
     "history": "📜 History",
 }
 
-# ---------- Engine import ----------
+# ---------- Engine ----------
 try:
     from cbt_engine import (
         fetcher, format_question, search_databank,
@@ -82,7 +100,7 @@ try:
 except Exception as _e:
     print(f"[WARN] cbt_engine not loaded ({_e}); using fallbacks.")
     HAS_ENGINE = False
-    AVAILABLE_SUBJECTS = []
+    AVAILABLE_SUBJECTS = list(ALL_SUBJECTS)
 
     def search_databank(q, s=None, limit=5):
         return []
@@ -92,44 +110,45 @@ except Exception as _e:
 
     def format_question(q, i, t):
         lines = [f"Q{i}/{t}", q.get("question", "")]
-        for letter in ("A", "B", "C", "D"):
-            v = q.get(f"option_{letter.lower()}")
+        for L in ("A", "B", "C", "D"):
+            v = q.get(f"option_{L.lower()}")
             if v:
-                lines.append(f"{letter}) {v}")
+                lines.append(f"{L}) {v}")
         return "\n".join(lines)
 
     LOCAL_DATABANK = {}
     ALL_QS = []
 
-    class _Fetcher:
+    class _F:
         def fetch(self, s, y=None, limit=40):
             return []
-    fetcher = _Fetcher()
+    fetcher = _F()
 
-# If engine loaded but has no subjects, fall back so UI still renders
 if not AVAILABLE_SUBJECTS:
-    AVAILABLE_SUBJECTS = ALL_SUBJECTS
+    AVAILABLE_SUBJECTS = list(ALL_SUBJECTS)
 
 # ---------- Markdown safety ----------
-_MD_SPECIAL = re.compile(r"([_*`\[\]()~>#+\-=|{}.!\\])")
-
 def md(s):
-    """Escape a string for Telegram MarkdownV1 (only _ * ` [ ] matter strongly)."""
+    """Escape for Telegram MarkdownV1 (matters: _ * ` [)."""
     if s is None:
         return ""
     s = str(s)
-    return s.replace("\\", "\\\\").replace("_", "\\_").replace("*", "\\*").replace("`", "\\`").replace("[", "\\[")
+    return (s.replace("\\", "\\\\")
+             .replace("_", "\\_")
+             .replace("*", "\\*")
+             .replace("`", "\\`")
+             .replace("[", "\\["))
 
-# ---------- User data ----------
-DATA_FILE = Path("user_data.json")
+# ---------- Storage ----------
+DATA_FILE = Path(USER_DATA_FILE)
 USER_DATA = {}
 USER_SESSIONS = {}
 
 BOTTOM_KEYBOARD = ReplyKeyboardMarkup(
     [
         [KeyboardButton("📚 Past Questions"), KeyboardButton("📝 Mock Exam")],
-        [KeyboardButton("📊 My Score"), KeyboardButton("💬 Ask Tutor")],
-        [KeyboardButton("💎 Premium"), KeyboardButton("👥 Invite Friends")],
+        [KeyboardButton("📊 My Score"),       KeyboardButton("💬 Ask Tutor")],
+        [KeyboardButton("💎 Premium"),        KeyboardButton("👥 Invite Friends")],
     ],
     resize_keyboard=True,
     is_persistent=True,
@@ -161,6 +180,7 @@ def get_user(uid, username=""):
             "used_ids": [],
             "is_premium": False,
             "premium_until": None,
+            "premium_plan": None,           # "monthly" | "6months"
             "joined": str(date.today()),
             "history": [],
             "invite_code": hashlib.md5(uid.encode()).hexdigest()[:6].upper(),
@@ -180,6 +200,7 @@ def get_user(uid, username=""):
             if datetime.now() > exp:
                 u["is_premium"] = False
                 u["premium_until"] = None
+                u["premium_plan"] = None
                 save_data()
         except Exception:
             pass
@@ -245,9 +266,11 @@ def get_leading():
     return best_name, int(best_score)
 
 
-def add_premium(uid, days=30):
+def add_premium(uid, days=None, plan=None):
+    days = days or PREMIUM_DAYS
     u = get_user(uid)
     u["is_premium"] = True
+    u["premium_plan"] = plan or "monthly"
     base = datetime.now()
     if u.get("premium_until"):
         try:
@@ -260,53 +283,73 @@ def add_premium(uid, days=30):
     save_data()
 
 
+# ---------- Menus ----------
+
+def plan_buttons(uid):
+    """Return the two Flutterwave CTA buttons (Month + 6-Month)."""
+    m_url = f"{PAYMENT_URL}/upgrade/{uid}?plan=monthly"
+    h_url = f"{PAYMENT_URL}/upgrade/{uid}?plan=6months"
+    return [
+        [InlineKeyboardButton(
+            f"💳 Monthly — {PREMIUM_PRICE_TEXT}",
+            url=m_url)],
+        [InlineKeyboardButton(
+            f"💳 6 Months — {PREMIUM_6MONTHS_TEXT}",
+            url=h_url)],
+    ]
+
+
 def upgrade_kb(uid):
-    url = f"{PAYMENT_URL}/upgrade/{uid}" if PAYMENT_URL else f"https://t.me/{BOT_USERNAME}"
-    total_qs = len(ALL_QS) if ALL_QS else 1500
+    total_qs = len(ALL_QS) if ALL_QS else 0
     msg = (
         f"⏰ *Daily Limit Reached!*\n\n"
         f"Free: {FREE_MOCK_QS_DAILY} mock/day + {FREE_TUTOR_PER_DAY} tutor/day\n\n"
-        f"💎 *Premium {PREMIUM_PRICE_TEXT}/month:*\n"
+        f"💎 *Premium Plans:*\n"
+        f"• Monthly — {PREMIUM_PRICE_TEXT} / {PREMIUM_DAYS} days\n"
+        f"• 6 Months — {PREMIUM_6MONTHS_TEXT} / {PREMIUM_6MONTHS_DAYS} days\n\n"
         f"✅ Unlimited mocks\n"
-        f"✅ Full 180Q CBT 2hrs\n"
+        f"✅ Full 180Q CBT\n"
         f"✅ Unlimited tutor + Voice 🎙️\n"
-        f"✅ {total_qs}+ Qs\n\n"
+        f"✅ {total_qs} Qs in databank\n\n"
         f"🚀 *VIRAL:* Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE!"
     )
-    kb = [
-        [InlineKeyboardButton(f"💳 Upgrade {PREMIUM_PRICE_TEXT}", url=url)],
-        [InlineKeyboardButton(
-            f"👥 Invite {REFERRAL_REQUIRED}= {REFERRAL_REWARD_DAYS} Days FREE!",
-            callback_data="invite_friends")],
-        [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
-    ]
+    kb = plan_buttons(uid)
+    kb.append([InlineKeyboardButton(
+        f"👥 Invite {REFERRAL_REQUIRED}= {REFERRAL_REWARD_DAYS} Days FREE!",
+        callback_data="invite_friends")])
+    kb.append([InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")])
     return msg, InlineKeyboardMarkup(kb)
 
 
 def main_menu(uid):
     u = get_user(uid)
     rem = get_mock_remaining(uid)
-    prem = "💎 Premium Active ✅" if is_premium(uid) else f"💎 Premium {PREMIUM_PRICE_TEXT}"
+    if is_premium(uid):
+        plan_label = u.get("premium_plan", "premium")
+        prem = f"💎 Premium Active ({plan_label}) ✅"
+    else:
+        prem = f"💎 Premium {PREMIUM_PRICE_TEXT}/mo · {PREMIUM_6MONTHS_TEXT}/6mo"
+
     leader_name, leader_score = get_leading()
     text = (
-        f"🎓 *UTME Success Bot v21 PROFESSIONAL*\n\n"
+        f"🎓 *UTME Success Bot*\n\n"
         f"📊 {rem}/{FREE_MOCK_QS_DAILY} mocks today | {prem}\n"
-        f"🏆 Top: {md(leader_name)} - {leader_score}/400\n\n"
-        f"👥 *VIRAL:* Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE premium!\n\n"
+        f"🏆 Top: {md(leader_name)} — {leader_score}/400\n\n"
+        f"👥 *VIRAL:* Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE!\n\n"
         f"Choose:"
     )
     kb = [
         [InlineKeyboardButton("📚 Past Questions", callback_data="past_by_subject"),
-         InlineKeyboardButton("📝 Mock Exam", callback_data="mock_menu")],
-        [InlineKeyboardButton("📖 Study Plan", callback_data="study_plan"),
-         InlineKeyboardButton("📋 Syllabus", callback_data="syllabus")],
-        [InlineKeyboardButton("📊 My Score", callback_data="my_score"),
-         InlineKeyboardButton("💬 Ask Tutor", callback_data="ask_tutor")],
+         InlineKeyboardButton("📝 Mock Exam",      callback_data="mock_menu")],
+        [InlineKeyboardButton("📖 Study Plan",     callback_data="study_plan"),
+         InlineKeyboardButton("📋 Syllabus",       callback_data="syllabus")],
+        [InlineKeyboardButton("📊 My Score",       callback_data="my_score"),
+         InlineKeyboardButton("💬 Ask Tutor",      callback_data="ask_tutor")],
         [InlineKeyboardButton(
-            f"👥 Invite Friends - {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} Days FREE!",
+            f"👥 Invite Friends — {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} Days FREE!",
             callback_data="invite_friends")],
-        [InlineKeyboardButton("💎 Premium", callback_data="premium_info"),
-         InlineKeyboardButton("❓ Help", callback_data="help_menu")],
+        [InlineKeyboardButton("💎 Premium",        callback_data="premium_info"),
+         InlineKeyboardButton("❓ Help",            callback_data="help_menu")],
     ]
     return text, InlineKeyboardMarkup(kb)
 
@@ -331,23 +374,18 @@ def _answer_keyboard(q):
     b = md((q.get("option_b") or "")[:25])
     c = md((q.get("option_c") or "")[:25])
     d = md((q.get("option_d") or "")[:25])
-    kb = [
+    return InlineKeyboardMarkup([
         [InlineKeyboardButton(f"A) {a}", callback_data="ans:A"),
          InlineKeyboardButton(f"B) {b}", callback_data="ans:B")],
         [InlineKeyboardButton(f"C) {c}", callback_data="ans:C"),
          InlineKeyboardButton(f"D) {d}", callback_data="ans:D")],
         [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
-    ]
-    return InlineKeyboardMarkup(kb)
+    ])
 
 
 def _start_mock_session(uid, qs, subject_label, intro_text=""):
     USER_SESSIONS[uid] = {
-        "mode": "mock",
-        "qs": qs,
-        "idx": 0,
-        "score": 0,
-        "subject": subject_label,
+        "mode": "mock", "qs": qs, "idx": 0, "score": 0, "subject": subject_label,
     }
     q = qs[0]
     txt = (intro_text + "\n\n" if intro_text else "") + format_question(q, 1, len(qs))
@@ -362,10 +400,12 @@ async def handle_callback(update, context):
     data = query.data
     u = get_user(uid, query.from_user.first_name or "")
 
+    # ----- Study Plan -----
     if data == "study_plan":
-        await query.message.reply_text("📖 *Study Plan - Choose Subject:*",
-                                       reply_markup=subjects_kb("study_subject"),
-                                       parse_mode="Markdown")
+        await query.message.reply_text(
+            "📖 *Study Plan — Choose Subject:*",
+            reply_markup=subjects_kb("study_subject"),
+            parse_mode="Markdown")
         return
 
     if data.startswith("study_subject_"):
@@ -376,19 +416,23 @@ async def handle_callback(update, context):
         USER_SESSIONS[uid] = {"mode": "tutor", "subject": subj}
         count = len(LOCAL_DATABANK.get(subj, []))
         await query.message.reply_text(
-            f"📖 *Let's study {display}!* 🧬\n"
-            f"Ask me any question. I know {count} Qs + syllabus + AI brain.",
+            f"📖 *Let's study {display}!*\n"
+            f"I know {count} Qs on {display} + syllabus + AI brain.",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton(f"💬 Ask {display}", callback_data="ask_tutor")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
+                [InlineKeyboardButton(f"💬 Ask {display}",
+                                      callback_data="ask_tutor")],
+                [InlineKeyboardButton("🏠 Main Menu",
+                                      callback_data="main_menu")],
             ]))
         return
 
+    # ----- Syllabus -----
     if data == "syllabus":
-        await query.message.reply_text("📋 *JAMB Syllabus - Choose:*",
-                                       reply_markup=subjects_kb("syllabus_subject"),
-                                       parse_mode="Markdown")
+        await query.message.reply_text(
+            "📋 *JAMB Syllabus — Choose:*",
+            reply_markup=subjects_kb("syllabus_subject"),
+            parse_mode="Markdown")
         return
 
     if data.startswith("syllabus_subject_"):
@@ -397,19 +441,22 @@ async def handle_callback(update, context):
         await query.message.reply_text(
             f"📋 *{display} Syllabus*\n\n"
             f"JAMB syllabus: Core concepts + topics.\n"
-            f"Link: https://jamb.gov.ng/ELibrary",
+            f"Official link: https://jamb.gov.ng/ELibrary",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton(f"📖 Study {display}",
                                       callback_data=f"study_subject_{subj}")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
+                [InlineKeyboardButton("🏠 Main Menu",
+                                      callback_data="main_menu")],
             ]))
         return
 
+    # ----- Past Questions -----
     if data == "past_by_subject":
-        await query.message.reply_text("📚 *Past Questions - Choose Subject:*",
-                                       reply_markup=subjects_kb("past_subject"),
-                                       parse_mode="Markdown")
+        await query.message.reply_text(
+            "📚 *Past Questions — Choose Subject:*",
+            reply_markup=subjects_kb("past_subject"),
+            parse_mode="Markdown")
         return
 
     if data.startswith("past_subject_"):
@@ -424,7 +471,8 @@ async def handle_callback(update, context):
                 f"⚠️ No questions available for {SUBJECT_DISPLAY.get(subj, subj)} yet.",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("⬅️ Back", callback_data="past_by_subject")],
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
+                    [InlineKeyboardButton("🏠 Main Menu",
+                                          callback_data="main_menu")],
                 ]))
             return
         consume_mock(uid, len(qs), [q["id"] for q in qs])
@@ -432,6 +480,7 @@ async def handle_callback(update, context):
         await query.message.reply_text(txt, reply_markup=kb)
         return
 
+    # ----- Answer handler -----
     if data.startswith("ans:"):
         ans = data.split(":")[1]
         session = USER_SESSIONS.get(uid)
@@ -480,35 +529,41 @@ async def handle_callback(update, context):
             result_text = (
                 f"🎉 *Mock Completed!*\n\n"
                 f"Score: *{score}/{total}* ({percent}%)\n"
-                f"🏆 Leader: {md(leader_name)} - {leader_score}/400"
+                f"🏆 Leader: {md(leader_name)} — {leader_score}/400"
             )
             await query.message.reply_text(
                 result_text,
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔄 Try Again", callback_data="mock_quick")],
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
+                    [InlineKeyboardButton("🔄 Try Again",
+                                          callback_data="mock_quick")],
+                    [InlineKeyboardButton("🏠 Main Menu",
+                                          callback_data="main_menu")],
                 ]))
             USER_SESSIONS.pop(uid, None)
         return
 
+    # ----- Mock menu -----
     if data == "mock_menu":
         rem = get_mock_remaining(uid)
         if is_premium(uid):
             leader_name, leader_score = get_leading()
             await query.message.reply_text(
-                f"📝 *Mock - Premium*\n"
-                f"🏆 Leader: {md(leader_name)} - {leader_score}/400\n"
+                f"📝 *Mock — Premium*\n"
+                f"🏆 Leader: {md(leader_name)} — {leader_score}/400\n"
                 f"✅ Unlimited",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("⚡ Quick 5 Qs", callback_data="mock_quick")],
-                    [InlineKeyboardButton("🔥 Full 180Q", callback_data="mock_full")],
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
+                    [InlineKeyboardButton("⚡ Quick 5 Qs",
+                                          callback_data="mock_quick")],
+                    [InlineKeyboardButton("🔥 Full 180Q",
+                                          callback_data="mock_full")],
+                    [InlineKeyboardButton("🏠 Main Menu",
+                                          callback_data="main_menu")],
                 ]))
         else:
             await query.message.reply_text(
-                f"📝 *Mock - Free {rem}/{FREE_MOCK_QS_DAILY} today*\n"
+                f"📝 *Mock — Free {rem}/{FREE_MOCK_QS_DAILY} today*\n"
                 f"Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE!",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([
@@ -516,7 +571,8 @@ async def handle_callback(update, context):
                                           callback_data="mock_quick")],
                     [InlineKeyboardButton(f"👥 Invite {REFERRAL_REQUIRED}=FREE",
                                           callback_data="invite_friends")],
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
+                    [InlineKeyboardButton("🏠 Main Menu",
+                                          callback_data="main_menu")],
                 ]))
         return
 
@@ -525,9 +581,7 @@ async def handle_callback(update, context):
             msg, kb = upgrade_kb(uid)
             await query.message.reply_text(msg, parse_mode="Markdown", reply_markup=kb)
             return
-
         pool = AVAILABLE_SUBJECTS or ALL_SUBJECTS
-        # Pick up to 3 subjects that actually have questions
         sample_size = min(3, len(pool))
         subjects_mix = random.sample(pool, sample_size)
         qs = []
@@ -536,10 +590,11 @@ async def handle_callback(update, context):
         random.shuffle(qs)
         qs = qs[:5]
         if not qs:
-            await query.message.reply_text("⚠️ No questions loaded. Check the databank.")
+            await query.message.reply_text("⚠️ No questions loaded. Check databank.")
             return
         consume_mock(uid, len(qs), [q["id"] for q in qs])
-        txt, kb = _start_mock_session(uid, qs, "mixed", intro_text="🚀 *Quick Mock 5 Qs*")
+        txt, kb = _start_mock_session(uid, qs, "mixed",
+                                      intro_text="🚀 *Quick Mock 5 Qs*")
         await query.message.reply_text(txt, parse_mode="Markdown", reply_markup=kb)
         return
 
@@ -551,12 +606,14 @@ async def handle_callback(update, context):
             return
         leader_name, leader_score = get_leading()
         await query.message.reply_text(
-            f"🏆 *Leader: {md(leader_name)} - {leader_score}/400*\n\n"
-            f"Full Mock 180Q 2hrs",
+            f"🏆 *Leader: {md(leader_name)} — {leader_score}/400*\n\n"
+            f"Full Mock 180Q · 2hrs",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Start 180Q", callback_data="mock_full_start")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
+                [InlineKeyboardButton("🚀 Start 180Q",
+                                      callback_data="mock_full_start")],
+                [InlineKeyboardButton("🏠 Main Menu",
+                                      callback_data="main_menu")],
             ]))
         return
 
@@ -579,11 +636,12 @@ async def handle_callback(update, context):
             return
         leader_name, leader_score = get_leading()
         intro = (f"🚀 *Full Mock {len(qs)}Q*\n"
-                 f"🏆 To beat: {md(leader_name)} - {leader_score}/400")
+                 f"🏆 To beat: {md(leader_name)} — {leader_score}/400")
         txt, kb = _start_mock_session(uid, qs, "full_mock", intro_text=intro)
         await query.message.reply_text(txt, parse_mode="Markdown", reply_markup=kb)
         return
 
+    # ----- Leaderboard -----
     if data == "leaderboard":
         scores = []
         for uid_k, d in USER_DATA.items():
@@ -596,118 +654,134 @@ async def handle_callback(update, context):
         text = "🏆 *LEADERBOARD*\n\n"
         for i, (name, avg, c) in enumerate(scores[:15], 1):
             medal = ["🥇", "🥈", "🥉"][i - 1] if i <= 3 else f"{i}."
-            text += f"{medal} {md(name)} - {avg:.1f}% ({c} mocks)\n"
+            text += f"{medal} {md(name)} — {avg:.1f}% ({c} mocks)\n"
         if not scores:
             text += "No scores yet"
         await query.message.reply_text(
             text, parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📝 Mock", callback_data="mock_quick"),
-                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+                 InlineKeyboardButton("🏠 Main Menu",
+                                      callback_data="main_menu")]]))
         return
 
+    # ----- My Score -----
     if data == "my_score":
         hist = u.get("history", [])
         if not hist:
             await query.message.reply_text(
                 "📊 No scores yet",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📝 Mock", callback_data="mock_quick")]]))
+                    [InlineKeyboardButton("📝 Mock",
+                                          callback_data="mock_quick")]]))
             return
         avg = sum(h["score"] * 400 // h["total"] for h in hist if h["total"]) / len(hist)
         leader_name, leader_score = get_leading()
         await query.message.reply_text(
-            f"📊 Avg {int(avg)}/400 | Exams {len(hist)}\n"
-            f"🏆 Leader: {md(leader_name)} - {leader_score}/400",
+            f"📊 Avg {int(avg)}/400 · Exams {len(hist)}\n"
+            f"🏆 Leader: {md(leader_name)} — {leader_score}/400",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+                [InlineKeyboardButton("🏠 Main Menu",
+                                      callback_data="main_menu")]]))
         return
 
+    # ----- Ask Tutor -----
     if data == "ask_tutor":
-        # Preserve any subject already chosen via Study Plan
         prev_subject = USER_SESSIONS.get(uid, {}).get("subject") or u.get("study_subject")
         USER_SESSIONS[uid] = {"mode": "tutor", "subject": prev_subject}
         await query.message.reply_text(
-            f"💬 *Ask Tutor - 200% Smart*\n"
-            f"I know {len(ALL_QS)} Qs + syllabus + AI brain + Voice 🎙️ Nigerian slow.\n"
+            f"💬 *Ask Tutor — 200% Smart*\n"
+            f"I know {len(ALL_QS)} Qs + syllabus + AI brain + Voice 🎙️.\n"
             f"Ask anything:",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+                [InlineKeyboardButton("🏠 Main Menu",
+                                      callback_data="main_menu")]]))
         return
 
+    # ----- Premium info (two tiers) -----
     if data == "premium_info":
-        url = f"{PAYMENT_URL}/upgrade/{uid}" if PAYMENT_URL else f"https://t.me/{BOT_USERNAME}"
-        text = (
-            f"💎 *Premium {PREMIUM_PRICE_TEXT}/month*\n"
+        kb = plan_buttons(uid)
+        kb.append([InlineKeyboardButton(
+            f"👥 Invite {REFERRAL_REQUIRED}=FREE",
+            callback_data="invite_friends")])
+        kb.append([InlineKeyboardButton("🏠 Main Menu",
+                                        callback_data="main_menu")])
+        await query.message.reply_text(
+            f"💎 *Premium Plans*\n\n"
+            f"*Monthly — {PREMIUM_PRICE_TEXT}* / {PREMIUM_DAYS} days\n"
+            f"*6 Months — {PREMIUM_6MONTHS_TEXT}* / {PREMIUM_6MONTHS_DAYS} days\n\n"
             f"✅ Unlimited mocks\n"
-            f"✅ Full 180Q\n"
+            f"✅ Full 180Q CBT\n"
             f"✅ Unlimited tutor + Voice 🎙️\n"
-            f"✅ {len(ALL_QS)} Qs\n"
-            f"✅ Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE viral!"
-        )
-        kb = [
-            [InlineKeyboardButton(f"💳 Upgrade {PREMIUM_PRICE_TEXT}", url=url)],
-            [InlineKeyboardButton(f"👥 Invite {REFERRAL_REQUIRED}=FREE",
-                                  callback_data="invite_friends")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
-        ]
-        await query.message.reply_text(text, parse_mode="Markdown",
-                                       reply_markup=InlineKeyboardMarkup(kb))
+            f"✅ {len(ALL_QS)} Qs in databank\n\n"
+            f"🚀 *VIRAL:* Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE!",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(kb))
         return
 
+    # ----- Invite -----
     if data == "invite_friends":
         link = f"https://t.me/{BOT_USERNAME}?start=invite_{u['invite_code']}"
         invites = u.get("invites", 0)
         text = (
-            f"👥 *Invite Friends - VIRAL BONUS!*\n\n"
-            f"🎁 Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE!\n\n"
-            f"Link:\n`{link}`\n\n"
-            f"Invites: {invites}/{REFERRAL_REQUIRED}\n\n"
+            f"👥 *Invite Friends — VIRAL BONUS!*\n\n"
+            f"🎁 Invite {REFERRAL_REQUIRED} = {REFERRAL_REWARD_DAYS} days FREE!\n\n"
+            f"Your link:\n`{link}`\n\n"
+            f"Progress: {invites}/{REFERRAL_REQUIRED}\n\n"
             f"1. Share link\n"
-            f"2. Friend starts bot\n"
-            f"3. You get count\n"
-            f"4. At {REFERRAL_REQUIRED} → {REFERRAL_REWARD_DAYS} days auto!"
+            f"2. Friend taps Start\n"
+            f"3. You get credited\n"
+            f"4. At {REFERRAL_REQUIRED} → {REFERRAL_REWARD_DAYS} days auto-applied!"
         )
         kb = [
             [InlineKeyboardButton(
                 "📤 Share Link",
                 url=f"https://t.me/share/url?url={link}&text=Join UTME Success Bot!")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
+            [InlineKeyboardButton("🏠 Main Menu",
+                                  callback_data="main_menu")],
         ]
         await query.message.reply_text(text, parse_mode="Markdown",
                                        reply_markup=InlineKeyboardMarkup(kb))
         return
 
+    # ----- Help -----
     if data == "help_menu":
         await query.message.reply_text(
-            f"Help - @{CHANNEL_USERNAME}\nID: {uid}",
+            f"❓ *Help*\n\n"
+            f"Channel: @{md(CHANNEL_USERNAME)}\n"
+            f"Your ID: `{uid}`\n\n"
+            f"Commands: /start /menu /mock /study /syllabus /score /tutor /invite /premium",
+            parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+                [InlineKeyboardButton("🏠 Main Menu",
+                                      callback_data="main_menu")]]))
         return
 
+    # ----- Main menu -----
     if data == "main_menu":
         t, kb = main_menu(uid)
         await query.message.reply_text(t, reply_markup=kb, parse_mode="Markdown")
         return
 
 
-# ---------- Message handler ----------
+# ---------- Text handler ----------
 async def handle_msg(update, context):
     uid = str(update.effective_user.id)
     text = (update.message.text or "").strip()
     u = get_user(uid, update.effective_user.first_name or "")
 
-    # Bottom keyboard buttons
+    # Bottom keyboard
     if text in [
         "📚 Past Questions", "📝 Mock Exam", "📊 My Score",
-        "💬 Ask Tutor", "💎 Premium", "👥 Invite Friends", "📖 Study Plan"
+        "💬 Ask Tutor", "💎 Premium", "👥 Invite Friends", "📖 Study Plan",
     ]:
         if text == "📚 Past Questions":
-            await update.message.reply_text("📚 *Past Questions - Choose Subject:*",
-                                            reply_markup=subjects_kb("past_subject"),
-                                            parse_mode="Markdown")
+            await update.message.reply_text(
+                "📚 *Past Questions — Choose Subject:*",
+                reply_markup=subjects_kb("past_subject"),
+                parse_mode="Markdown")
             return
 
         if text == "📝 Mock Exam":
@@ -715,13 +789,16 @@ async def handle_msg(update, context):
             if is_premium(uid):
                 leader_name, leader_score = get_leading()
                 await update.message.reply_text(
-                    f"🏆 Leader: {md(leader_name)} - {leader_score}/400\n"
-                    f"📝 Mock Premium Unlimited",
+                    f"🏆 Leader: {md(leader_name)} — {leader_score}/400\n"
+                    f"📝 Mock Premium · Unlimited",
                     parse_mode="Markdown",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("⚡ Quick 5 Qs", callback_data="mock_quick")],
-                        [InlineKeyboardButton("🔥 Full 180Q", callback_data="mock_full")],
-                        [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+                        [InlineKeyboardButton("⚡ Quick 5 Qs",
+                                              callback_data="mock_quick")],
+                        [InlineKeyboardButton("🔥 Full 180Q",
+                                              callback_data="mock_full")],
+                        [InlineKeyboardButton("🏠 Main Menu",
+                                              callback_data="main_menu")]]))
             else:
                 await update.message.reply_text(
                     f"📝 Mock Free {rem}/{FREE_MOCK_QS_DAILY} today\n"
@@ -732,7 +809,8 @@ async def handle_msg(update, context):
                                               callback_data="mock_quick")],
                         [InlineKeyboardButton(f"👥 Invite {REFERRAL_REQUIRED}=FREE",
                                               callback_data="invite_friends")],
-                        [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+                        [InlineKeyboardButton("🏠 Main Menu",
+                                              callback_data="main_menu")]]))
             return
 
         if text == "📊 My Score":
@@ -740,35 +818,43 @@ async def handle_msg(update, context):
             if not hist:
                 await update.message.reply_text("📊 No scores yet")
                 return
-            avg = sum(h["score"] * 400 // h["total"] for h in hist if h["total"]) / len(hist)
+            avg = sum(h["score"] * 400 // h["total"]
+                      for h in hist if h["total"]) / len(hist)
             await update.message.reply_text(
-                f"📊 Avg {int(avg)}/400 | Exams {len(hist)}",
+                f"📊 Avg {int(avg)}/400 · Exams {len(hist)}",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+                    [InlineKeyboardButton("🏠 Main Menu",
+                                          callback_data="main_menu")]]))
             return
 
         if text == "💬 Ask Tutor":
-            prev_subject = USER_SESSIONS.get(uid, {}).get("subject") or u.get("study_subject")
+            prev_subject = (USER_SESSIONS.get(uid, {}).get("subject")
+                            or u.get("study_subject"))
             USER_SESSIONS[uid] = {"mode": "tutor", "subject": prev_subject}
             await update.message.reply_text(
-                f"💬 *Ask Tutor - 200% Smart*\n"
-                f"I know {len(ALL_QS)} Qs + AI brain + Voice 🎙️ Nigerian slow.\n"
+                f"💬 *Ask Tutor — 200% Smart*\n"
+                f"I know {len(ALL_QS)} Qs + AI brain + Voice 🎙️.\n"
                 f"Ask anything:",
                 parse_mode="Markdown")
             return
 
         if text == "💎 Premium":
-            url = f"{PAYMENT_URL}/upgrade/{uid}" if PAYMENT_URL else f"https://t.me/{BOT_USERNAME}"
+            kb = plan_buttons(uid)
+            kb.append([InlineKeyboardButton(
+                f"👥 Invite {REFERRAL_REQUIRED}=FREE",
+                callback_data="invite_friends")])
+            kb.append([InlineKeyboardButton("🏠 Main Menu",
+                                            callback_data="main_menu")])
             await update.message.reply_text(
-                f"💎 *Premium {PREMIUM_PRICE_TEXT}*\n"
+                f"💎 *Premium Plans*\n\n"
+                f"*Monthly — {PREMIUM_PRICE_TEXT}* / {PREMIUM_DAYS} days\n"
+                f"*6 Months — {PREMIUM_6MONTHS_TEXT}* / {PREMIUM_6MONTHS_DAYS} days\n\n"
                 f"✅ Unlimited mocks\n"
                 f"✅ Full 180Q\n"
                 f"✅ Tutor + Voice\n"
                 f"✅ Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE",
                 parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(f"💳 Upgrade {PREMIUM_PRICE_TEXT}", url=url)],
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+                reply_markup=InlineKeyboardMarkup(kb))
             return
 
         if text == "👥 Invite Friends":
@@ -777,23 +863,29 @@ async def handle_msg(update, context):
                 f"👥 *Invite Friends VIRAL*\n\n"
                 f"Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE!\n\n"
                 f"Link:\n`{link}`\n\n"
-                f"Invites: {u.get('invites', 0)}/{REFERRAL_REQUIRED}",
+                f"Progress: {u.get('invites', 0)}/{REFERRAL_REQUIRED}",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📤 Share",
-                                          url=f"https://t.me/share/url?url={link}")],
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+                    [InlineKeyboardButton(
+                        "📤 Share",
+                        url=f"https://t.me/share/url?url={link}")],
+                    [InlineKeyboardButton("🏠 Main Menu",
+                                          callback_data="main_menu")]]))
             return
 
         if text == "📖 Study Plan":
-            await update.message.reply_text("📖 *Study Plan - Choose:*",
-                                            reply_markup=subjects_kb("study_subject"),
-                                            parse_mode="Markdown")
+            await update.message.reply_text(
+                "📖 *Study Plan — Choose:*",
+                reply_markup=subjects_kb("study_subject"),
+                parse_mode="Markdown")
             return
 
-    # Tutor mode (default for free-form text)
+    # ---------- Tutor mode ----------
     session = USER_SESSIONS.get(uid, {})
-    is_tutor = session.get("mode") == "tutor" or "?" in text or len(text) > 8
+    is_tutor = (session.get("mode") == "tutor"
+                or "?" in text
+                or len(text) > 8)
+
     if is_tutor:
         if not can_use_tutor(uid):
             msg, kb = upgrade_kb(uid)
@@ -811,7 +903,7 @@ async def handle_msg(update, context):
         subj = session.get("subject") or u.get("study_subject") or "general"
         display = SUBJECT_DISPLAY.get(subj, subj.title()) if subj != "general" else "JAMB"
 
-        answer_text = f"💬 *{display} Tutor - 200% Smart*\n\n*Q:* {md(text[:400])}\n\n"
+        answer_text = f"💬 *{display} Tutor — 200% Smart*\n\n*Q:* {md(text[:400])}\n\n"
 
         if relevant:
             answer_text += f"*📚 From Databank ({len(relevant)} found):*\n\n"
@@ -831,13 +923,13 @@ async def handle_msg(update, context):
         if "photosynthesis" in lower_q:
             answer_text += (
                 "Photosynthesis: 6CO2 + 6H2O → C6H12O6 + 6O2.\n"
-                "Chloroplast, light & dark reaction.\n"
-                "Factors: light, CO2, temp.\n\n"
+                "Chloroplast · light & dark reaction.\n"
+                "Limiting factors: light, CO2, temperature.\n\n"
             )
         else:
             answer_text += (
-                f"Based on JAMB syllabus for {display}: core concept "
-                f"explanation, steps, example, how JAMB asks, trick to avoid.\n\n"
+                f"Based on JAMB syllabus for {display}: core concept, "
+                f"steps, example, how JAMB asks, and the trap to avoid.\n\n"
             )
         answer_text += "💡 Tip: Appears frequently in UTME. Eliminate wrong options!"
 
@@ -846,7 +938,8 @@ async def handle_msg(update, context):
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🎙️ Voice", callback_data="ask_tutor")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+                [InlineKeyboardButton("🏠 Main Menu",
+                                      callback_data="main_menu")]]))
 
         if HAS_TTS:
             try:
@@ -864,7 +957,8 @@ async def handle_msg(update, context):
                 tts.save(voice_path)
                 with open(voice_path, "rb") as f:
                     await update.message.reply_voice(
-                        voice=f, caption=f"🎙️ Voice - {display} - Slow Nigerian")
+                        voice=f,
+                        caption=f"🎙️ Voice — {display} — Slow Nigerian")
                 try:
                     os.remove(voice_path)
                 except Exception:
@@ -873,7 +967,8 @@ async def handle_msg(update, context):
                 print(f"TTS error: {e}")
         return
 
-    await update.message.reply_text("Use menu below:", reply_markup=BOTTOM_KEYBOARD)
+    await update.message.reply_text("Use the menu below 👇",
+                                    reply_markup=BOTTOM_KEYBOARD)
 
 
 # ---------- /start ----------
@@ -888,26 +983,29 @@ async def start(update, context):
             u = get_user(uid, username)
             if not u.get("invited_by"):
                 for inviter_id, inv_data in USER_DATA.items():
-                    if inv_data.get("invite_code") == code and inviter_id != uid:
+                    if (inv_data.get("invite_code") == code
+                            and inviter_id != uid):
                         if uid not in inv_data.get("invited_users", []):
                             u["invited_by"] = inviter_id
                             inv_data["invites"] = inv_data.get("invites", 0) + 1
                             inv_data.setdefault("invited_users", []).append(uid)
                             if inv_data["invites"] >= REFERRAL_REQUIRED:
-                                add_premium(inviter_id, days=REFERRAL_REWARD_DAYS)
+                                add_premium(inviter_id,
+                                            days=REFERRAL_REWARD_DAYS,
+                                            plan="referral")
                                 inv_data["invites"] = 0
                             save_data()
                             await update.message.reply_text(
-                                f"🎉 Welcome! Invited by friend. "
-                                f"Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} "
-                                f"days FREE premium!")
+                                f"🎉 Welcome! Invited by a friend.\n"
+                                f"Invite {REFERRAL_REQUIRED} = "
+                                f"{REFERRAL_REWARD_DAYS} days FREE premium!")
                         break
 
     t, kb = main_menu(uid)
     await update.message.reply_text(t, reply_markup=kb, parse_mode="Markdown")
     await update.message.reply_text(
         f"Use buttons below 👇\n"
-        f"🚀 Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days Premium FREE!",
+        f"🚀 Invite {REFERRAL_REQUIRED} = {REFERRAL_REWARD_DAYS} days Premium FREE!",
         reply_markup=BOTTOM_KEYBOARD)
 
 
@@ -918,64 +1016,100 @@ flask_app = Flask(__name__)
 @flask_app.route("/")
 def home():
     return (
-        f"UTME v21 PROFESSIONAL - Mock + Tutor + Voice + Viral "
-        f"{REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} - "
-        f"{FREE_MOCK_QS_DAILY}/day + {FREE_TUTOR_PER_DAY} tutor | "
-        f"{len(ALL_QS)} Qs | Running"
+        f"UTME Bot v24 · "
+        f"Monthly {PREMIUM_PRICE_TEXT} · 6mo {PREMIUM_6MONTHS_TEXT} · "
+        f"Free {FREE_MOCK_QS_DAILY} mock/day + {FREE_TUTOR_PER_DAY} tutor/day · "
+        f"{REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days · "
+        f"{len(ALL_QS)} Qs · Running"
     )
-
-
-@flask_app.route("/upgrade/<uid>")
-def upgrade_page(uid):
-    return render_template_string(f"""
-    <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Upgrade</title>
-    <style>
-      body{{font-family:Arial;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);text-align:center;padding:20px}}
-      .card{{background:white;max-width:450px;margin:20px auto;padding:30px;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.2)}}
-      .btn{{background:#5865f2;color:white;padding:16px 28px;border-radius:12px;text-decoration:none;display:inline-block;margin:10px 0;font-weight:bold;width:85%}}
-      .btn2{{background:#00c851;color:white;padding:14px 28px;border-radius:12px;text-decoration:none;display:inline-block;margin:8px 0;font-weight:bold;width:85%}}
-      .viral{{background:#fff3cd;padding:15px;border-radius:10px;margin:15px 0;border-left:4px solid #ffc107}}
-    </style></head><body>
-    <div class="card">
-      <h2>💎 Go Premium</h2>
-      <p>User: {uid}</p>
-      <div style="font-size:36px;font-weight:bold;color:#5865f2">{PREMIUM_PRICE_TEXT}/month</div>
-      <div class="viral"><strong>🚀 VIRAL:</strong><br>Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE premium!</div>
-      <ul style="text-align:left;max-width:320px;margin:20px auto;line-height:2">
-        <li>✅ Unlimited Mocks</li>
-        <li>✅ Full 180Q CBT</li>
-        <li>✅ Unlimited Tutor + Voice 🎙️</li>
-        <li>✅ Voice Nigerian slow</li>
-        <li>✅ All databank</li>
-      </ul>
-      <a class="btn" href="https://paystack.com/pay/utme-success-{uid}">💳 Pay {PREMIUM_PRICE_TEXT}</a>
-      <a class="btn2" href="https://t.me/{BOT_USERNAME}?start=invite_{uid}">👥 Invite 3=7 Days FREE</a>
-    </div></body></html>
-    """)
 
 
 @flask_app.route("/health")
 def health():
     return jsonify({
         "status": "ok",
-        "version": "v21 PROFESSIONAL Mock FIXED + Tutor 200% + Voice + Viral",
-        "premium": PREMIUM_PRICE_TEXT,
-        "free_mock_daily": FREE_MOCK_QS_DAILY,
-        "free_tutor_daily": FREE_TUTOR_PER_DAY,
-        "referral": f"{REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS}",
-        "total_questions": len(ALL_QS),
-        "available_subjects": AVAILABLE_SUBJECTS,
+        "version": "v24",
+        "pricing": {
+            "monthly": PREMIUM_PRICE_TEXT,
+            "monthly_days": PREMIUM_DAYS,
+            "six_months": PREMIUM_6MONTHS_TEXT,
+            "six_months_days": PREMIUM_6MONTHS_DAYS,
+        },
+        "free_tier": {
+            "mock_per_day": FREE_MOCK_QS_DAILY,
+            "tutor_per_day": FREE_TUTOR_PER_DAY,
+        },
+        "referral": {
+            "required": REFERRAL_REQUIRED,
+            "reward_days": REFERRAL_REWARD_DAYS,
+        },
+        "databank": {
+            "total_questions": len(ALL_QS),
+            "available_subjects": AVAILABLE_SUBJECTS,
+            "engine_loaded": HAS_ENGINE,
+        },
         "users": len(USER_DATA),
     })
 
 
+@flask_app.route("/upgrade/<uid>")
+def upgrade_page(uid):
+    plan = request.args.get("plan", "monthly")
+    if plan == "6months":
+        price_text = PREMIUM_6MONTHS_TEXT
+        days = PREMIUM_6MONTHS_DAYS
+        plan_label = "6 Months"
+        pay_link = FLUTTERWAVE_6MONTHS_LINK or "https://flutterwave.com/pay/utme-6months"
+    else:
+        price_text = PREMIUM_PRICE_TEXT
+        days = PREMIUM_DAYS
+        plan_label = "Monthly"
+        pay_link = FLUTTERWAVE_PAYMENT_LINK or "https://flutterwave.com/pay/utme-monthly"
+
+    invite_link = f"https://t.me/{BOT_USERNAME}?start=invite_{uid}"
+
+    return render_template_string(f"""
+    <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Upgrade — {plan_label}</title>
+    <style>
+      body{{font-family:Arial;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);text-align:center;padding:20px;margin:0}}
+      .card{{background:white;max-width:450px;margin:20px auto;padding:30px;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.2)}}
+      .price{{font-size:42px;font-weight:bold;color:#5865f2;margin:10px 0}}
+      .btn{{background:#f5a623;color:white;padding:16px 28px;border-radius:12px;text-decoration:none;display:inline-block;margin:14px 0;font-weight:bold;width:85%;font-size:18px}}
+      .btn2{{background:#00c851;color:white;padding:12px 24px;border-radius:12px;text-decoration:none;display:inline-block;margin:8px 0;font-weight:bold;width:85%}}
+      .viral{{background:#fff3cd;padding:15px;border-radius:10px;margin:15px 0;border-left:4px solid #ffc107;text-align:left}}
+      ul{{text-align:left;max-width:320px;margin:16px auto;line-height:1.9}}
+    </style></head><body>
+    <div class="card">
+      <h2>💎 Go Premium</h2>
+      <p style="color:#888;font-size:13px">Plan: <b>{plan_label}</b> · User: <code>{uid}</code></p>
+      <div class="price">{price_text}</div>
+      <p style="color:#666;font-size:14px">for {days} days</p>
+
+      <ul>
+        <li>✅ Unlimited Mocks</li>
+        <li>✅ Full 180Q CBT</li>
+        <li>✅ Unlimited Tutor + Voice 🎙️</li>
+        <li>✅ Access to all databank questions</li>
+        <li>✅ Cancel anytime</li>
+      </ul>
+
+      <a class="btn" href="{pay_link}">💳 Pay {price_text} with Flutterwave</a>
+
+      <div class="viral">
+        <strong>🚀 VIRAL — Free option:</strong><br>
+        Invite {REFERRAL_REQUIRED} friends → {REFERRAL_REWARD_DAYS} days FREE premium.
+      </div>
+      <a class="btn2" href="{invite_link}">👥 Invite {REFERRAL_REQUIRED} = {REFERRAL_REWARD_DAYS} Days FREE</a>
+    </div></body></html>
+    """)
+
+
 def run_flask():
-    port = int(os.environ.get("PORT", 5000))
-    flask_app.run(host="0.0.0.0", port=port)
+    flask_app.run(host="0.0.0.0", port=PORT)
 
 
-# ---------- Channel posting ----------
+# ---------- Channel auto-posting ----------
 async def channel_posting_job(app):
     posted_today = set()
     while True:
@@ -983,7 +1117,7 @@ async def channel_posting_job(app):
             now = datetime.now()
             lagos_hour = (now.hour + 1) % 24
             current_key = f"{now.date()}_{lagos_hour}"
-            if lagos_hour in [8, 13, 20] and current_key not in posted_today:
+            if lagos_hour in (8, 13, 20) and current_key not in posted_today:
                 if not CHANNEL_ID:
                     await asyncio.sleep(3600)
                     continue
@@ -994,8 +1128,11 @@ async def channel_posting_job(app):
                         continue
                     intro = random.choice([
                         "🌅 *Good Morning Champions!*",
-                        "☀️ *Rise and Shine!*"])
-                    cta = f"Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE premium!"
+                        "☀️ *Rise and Shine!*",
+                        "🌙 *Evening Practice!*",
+                    ])
+                    cta = (f"Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} "
+                           f"days FREE premium!")
                     question_text = md(q.get("question", "")[:320])
                     options_text = (
                         f"A) {md(q.get('option_a','')[:70])}\n"
@@ -1003,7 +1140,8 @@ async def channel_posting_job(app):
                         f"C) {md(q.get('option_c','')[:70])}\n"
                         f"D) {md(q.get('option_d','')[:70])}"
                     )
-                    subject_line = f"{md(q.get('subject','JAMB'))} | {md(str(q.get('year','')))}"
+                    subject_line = (f"{md(q.get('subject','JAMB'))} | "
+                                    f"{md(str(q.get('year','')))}")
                     message = (
                         f"{intro}\n\n"
                         f"*{subject_line}*\n\n"
@@ -1011,8 +1149,9 @@ async def channel_posting_job(app):
                         f"{options_text}\n\n"
                         f"{cta}\n\n"
                         f"👉 https://t.me/{BOT_USERNAME}\n"
-                        f"💎 Premium {PREMIUM_PRICE_TEXT}\n\n"
-                        f"*Invite {REFERRAL_REQUIRED}= {REFERRAL_REWARD_DAYS} days FREE!*"
+                        f"💎 Monthly {PREMIUM_PRICE_TEXT} · 6mo {PREMIUM_6MONTHS_TEXT}\n\n"
+                        f"*Invite {REFERRAL_REQUIRED} = "
+                        f"{REFERRAL_REWARD_DAYS} days FREE!*"
                     )
                     await app.bot.send_message(
                         chat_id=CHANNEL_ID, text=message, parse_mode="Markdown")
@@ -1037,13 +1176,14 @@ async def set_bot_commands_and_menu(app):
             BotCommand("syllabus", "JAMB Syllabus"),
             BotCommand("score", "My Score"),
             BotCommand("tutor", "Ask Tutor"),
-            BotCommand("invite", "Invite 3=7 Days FREE"),
+            BotCommand("invite", "Invite 3 = 7 Days FREE"),
             BotCommand("premium", "Upgrade Premium"),
             BotCommand("help", "Help"),
         ]
         await app.bot.set_my_commands(commands)
-        await app.bot.set_chat_menu_button(menu_button=MenuButtonCommands(text="Menu"))
-        print("✅ Commands set")
+        await app.bot.set_chat_menu_button(
+            menu_button=MenuButtonCommands(text="Menu"))
+        print("✅ Bot commands & menu set")
         asyncio.create_task(channel_posting_job(app))
     except Exception as e:
         print(f"Menu setup failed: {e}")
@@ -1052,39 +1192,40 @@ async def set_bot_commands_and_menu(app):
 # ---------- Main ----------
 def main():
     threading.Thread(target=run_flask, daemon=True).start()
-    print(f"Flask started on port {os.environ.get('PORT', 5000)}")
+    print(f"🌐 Flask running on port {PORT}")
 
     if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN_HERE" or len(BOT_TOKEN) < 20:
-        print("❌ BOT_TOKEN not set!")
+        print("❌ BOT_TOKEN not set! Set it in config.py or env var.")
         while True:
             time.sleep(60)
 
     try:
         app = ApplicationBuilder().token(BOT_TOKEN).build()
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CommandHandler("menu", start))
-        app.add_handler(CommandHandler("mock", start))
-        app.add_handler(CommandHandler("study", start))
-        app.add_handler(CommandHandler("syllabus", start))
-        app.add_handler(CommandHandler("score", start))
-        app.add_handler(CommandHandler("tutor", start))
-        app.add_handler(CommandHandler("invite", start))
-        app.add_handler(CommandHandler("premium", start))
-        app.add_handler(CommandHandler("help", start))
+
+        for cmd in ("start", "menu", "mock", "study", "syllabus",
+                    "score", "tutor", "invite", "premium", "help"):
+            app.add_handler(CommandHandler(cmd, start))
+
         app.add_handler(CallbackQueryHandler(handle_callback))
+
         app.add_handler(MessageHandler(
             filters.Regex(
                 "^(📚 Past Questions|📝 Mock Exam|📊 My Score|💬 Ask Tutor|"
                 "💎 Premium|👥 Invite Friends|📖 Study Plan|🔵 MENU|MENU|/mock|mock)$"
-            ), handle_msg))
+            ),
+            handle_msg))
+
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
+
         app.post_init = set_bot_commands_and_menu
+
         print(
-            f"v21 PROFESSIONAL - Mock FIXED + Tutor 200% + Voice + Viral "
-            f"{REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} | "
-            f"{len(ALL_QS)} Qs loaded"
+            f"✅ Bot v24 started | Monthly {PREMIUM_PRICE_TEXT} · "
+            f"6mo {PREMIUM_6MONTHS_TEXT} | {len(ALL_QS)} Qs | "
+            f"subjects: {len(AVAILABLE_SUBJECTS)}"
         )
         app.run_polling()
+
     except Exception as e:
         print(f"❌ Bot failed: {e}")
         import traceback
