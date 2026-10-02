@@ -1,45 +1,37 @@
-"""
-config.py - UTME Bot v17.1 FINAL - Complete Env Vars
-Free: 5 mock Qs (daily locked) + 2 tutor/day
-Premium: ₦2000 unlimited
-Referral: 3 people = 1 week premium
-"""
 import os
-
-# CORE
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-BOT_USERNAME = os.getenv("BOT_USERNAME", "YourBot")
-ADMIN_ID = os.getenv("ADMIN_ID", "")
-PAYMENT_URL = os.getenv("PAYMENT_URL", "https://your-app.onrender.com")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+FLUTTERWAVE_SECRET_KEY = os.getenv("FLW_SECRET_KEY", "")
+FLUTTERWAVE_PUBLIC_KEY = os.getenv("FLW_PUBLIC_KEY", "")
 
-# ALOC
-ALOC_ACCESS_TOKEN = os.getenv("ALOC_ACCESS_TOKEN", "")
+# Your live Render URLs
+BASE_URL = "https://utmebot.onrender.com"
+UPGRADE_URL = "https://utmebot.onrender.com/upgrade"
+WEBHOOK_URL = "https://utmebot.onrender.com/webhook/flutterwave"
 
-# PRICING & LIMITS - AS PER USER SPEC
-PREMIUM_PRICE = int(os.getenv("PREMIUM_PRICE", "2000"))
-PREMIUM_PRICE_TEXT = f"₦{PREMIUM_PRICE}"
-FREE_MOCK_QS_DAILY = int(os.getenv("FREE_MOCK_QS_DAILY", "5"))  # 5 free mock Qs per day - LOCKED
-FREE_TUTOR_PER_DAY = int(os.getenv("FREE_TUTOR_PER_DAY", "2"))  # 2 tutor Qs free
-PREMIUM_DAYS = int(os.getenv("PREMIUM_DAYS", "30"))
+CHANNEL_ID = "@UTMEbotChannel"  # change to your channel e.g. @UTMESUCCESSCHANNEL
+SUPPORT_HANDLE = "@UTMESUCCESS"
+JAMB_SYLLABUS_BASE = "https://www.jamb.gov.ng/Elibrary"
 
-# REFERRAL - 3 people = 1 week premium
-REFERRAL_REQUIRED = int(os.getenv("REFERRAL_REQUIRED", "3"))
-REFERRAL_REWARD_DAYS = int(os.getenv("REFERRAL_REWARD_DAYS", "7"))
+SUBJECTS = ["English", "Mathematics", "Biology", "Chemistry", "Physics", "Economics", "Government", "Literature", "Geography", "Commerce", "Accounting", "CRS", "IRS"]
 
-# PAYSTACK
-PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY", "")
-PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")
+FREE_DAILY_LIMIT = 20
+MOCK_LIMIT_FREE = 1
 
-# FLUTTERWAVE
-FLW_PUBLIC_KEY = os.getenv("FLW_PUBLIC_KEY", "")
-FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY", "")
-FLW_SECRET_HASH = os.getenv("FLW_SECRET_HASH", "utme_webhook_hash_123")
-FLW_ENCRYPTION_KEY = os.getenv("FLW_ENCRYPTION_KEY", "")
+# Flutterwave Plans
+PLANS = {
+    "monthly": {"amount": 2000, "name": "UTMEbot Premium Monthly", "duration_days": 30},
+    "six_months": {"amount": 6000, "name": "UTMEbot Premium 6 Months", "duration_days": 180}
+}
 
-# STORAGE
-USER_DATA_FILE = os.getenv("USER_DATA_FILE", "user_data.json")
-
-YEARS = list(range(2010, 2025))
-ALL_SUBJECTS = ["english","mathematics","biology","physics","chemistry","economics","government","commerce","accounting","literature","crk","geography","civic","history"]
-
-print(f"Config v17.1: Premium {PREMIUM_PRICE_TEXT} | Free {FREE_MOCK_QS_DAILY} mock/day + {FREE_TUTOR_PER_DAY} tutor/day | Refer {REFERRAL_REQUIRED}= {REFERRAL_REWARD_DAYS} days premium")
+SYLLABUS_BRIEF = {
+    "Biology": "Variety of organisms, Cell structure, Genetics, Ecology, Evolution. Focus on practical biology & diagrams.",
+    "Chemistry": "Particulate nature, Periodic table, Chemical bonding, Acids/bases, Organic chemistry.",
+    "Physics": "Mechanics, Waves, Optics, Electricity, Modern physics. Calculations are key.",
+    "Mathematics": "Number theory, Algebra, Geometry, Trigonometry, Statistics & Calculus basics.",
+    "English": "Lexis, Structure, Comprehension, Oral forms, Writing. JAMB tests comprehension speed.",
+    "Economics": "Scarcity, Demand/Supply, National Income, Money & Inflation.",
+    "Government": "Constitutions, Political systems, Nigerian government history.",
+    "Literature": "Prose, Drama, Poetry, Literary terms. Read recommended texts.",
+    "Geography": "Map work, Climate, Rocks, Population, Economic activities.",
+}
