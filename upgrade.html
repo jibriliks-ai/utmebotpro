@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upgrade UTMEbot Premium - Flutterwave</title>
+<script src="https://checkout.flutterwave.com/v3.js"></script>
+<style>
+body{font-family:Inter,Arial; background:#f0f4ff; margin:0; padding:15px}
+.card{background:white; max-width:460px; margin:20px auto; padding:28px; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.12)}
+h2{margin-top:5px}
+ul{ text-align:left; line-height:1.8}
+.btn{width:100%; display:block; background:#f5a623; color:#000; padding:16px; border-radius:12px; border:none; font-weight:800; font-size:16px; cursor:pointer; margin:10px 0}
+.btn2{background:#000; color:#fff}
+.badge{background:#ffeb3b; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700}
+.price{font-size:22px; font-weight:800; margin:15px 0}
+.small{font-size:12px; color:gray}
+</style>
+</head>
+<body>
+<div class="card">
+<center><span class="badge">BEST FOR JAMB 2026</span>
+<h2>💎 Upgrade to Premium</h2>
+<p>Join 3,200+ students scoring 280+ with UTMEbot</p></center>
+<ul>
+<li>✅ Unlimited Ask Tutor (All Subjects) - 200% Smart</li>
+<li>✅ Full Mock Exams Daily + Leaderboard</li>
+<li>✅ 20,000+ Past Questions Explained</li>
+<li>✅ Syllabus Breakdown + JAMB Links</li>
+<li>✅ Voice Notes in Nigerian Accent</li>
+<li>✅ Support: @UTMESUCCESS</li>
+</ul>
+<div class="price">Monthly: ₦2,000 <br> 6 Months: ₦6,000 (Save 50% - Best Value!)</div>
+
+<button class="btn" onclick="payWithFlutterwave('monthly', 2000)">Pay ₦2,000 Monthly - Flutterwave</button>
+<button class="btn btn2" onclick="payWithFlutterwave('six_months', 6000)">Pay ₦6,000 for 6 Months - Best Value</button>
+
+<p class="small">Secure payment by Flutterwave. After payment, you will be redirected and your Telegram account will be upgraded automatically. Keep your Telegram username.</p>
+<p class="small">Need help? Contact @UTMESUCCESS on Telegram</p>
+</div>
+
+<script>
+function getTelegramUser(){
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('telegram_id') || urlParams.get('user_id') || '';
+}
+function payWithFlutterwave(plan, amount){
+  const telegram_id = getTelegramUser();
+  if(!telegram_id){
+    alert("Open this page from UTMEbot Upgrade button so we can auto-upgrade you. Or contact @UTMESUCCESS after payment with your Telegram @username");
+  }
+  FlutterwaveCheckout({
+    public_key: "FLWPUBK_TEST-xxxxxxxxxxxxxxxx-X", // REPLACE WITH YOUR LIVE PUBLIC KEY
+    tx_ref: "UTMEBOT_" + Date.now() + "_" + telegram_id,
+    amount: amount,
+    currency: "NGN",
+    payment_options: "card, banktransfer, ussd",
+    meta: { telegram_id: telegram_id, plan: plan },
+    customer: { email: "user@utmebot.com", name: "UTMEbot User" },
+    customizations: {
+      title: "UTMEbot Premium",
+      description: plan + " subscription - " + (plan=="monthly" ? "1 month" : "6 months"),
+      logo: "https://utmebot.onrender.com/logo.png"
+    },
+    callback: function(data){
+      // Verify on server
+      fetch("/verify-flutterwave?tx_ref="+data.tx_ref+"&telegram_id="+telegram_id)
+      .then(r=>r.json()).then(res=>{
+        if(res.status=="success"){
+          window.location.href="/success?plan="+plan;
+        } else {
+          alert("Payment received! Send receipt to @UTMESUCCESS to activate.");
+        }
+      });
+    },
+    onclose: function(){}
+  });
+}
+</script>
+</body>
+</html>
