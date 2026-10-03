@@ -1,8 +1,8 @@
 """
 UTME Success Bot v26 — production build.
-Bot + Flask + payments in one process. Render-ready.
+Bot + Flask + payments in ONE process. Render-ready.
 """
-import os, json, random, time, threading, hashlib, asyncio, re, hmac
+import os, json, random, time, threading, hashlib, asyncio, re, hmac, traceback
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -37,8 +37,9 @@ try:
         FLW_PUBLIC_KEY, FLW_SECRET_KEY, FLW_SECRET_HASH,
         PAYSTACK_SECRET_KEY, ALL_SUBJECTS,
     )
-except Exception as _e:
-    print(f"[WARN] config.py missing ({_e}); using env-only defaults")
+    print("[config] ✅ loaded from config.py")
+except Exception as _cfg_err:
+    print(f"[config] ⚠️  config.py missing or broken ({_cfg_err}); using env-only defaults")
     BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
     BOT_USERNAME = os.getenv("BOT_USERNAME", "YourBot")
     ADMIN_ID = os.getenv("ADMIN_ID", "")
@@ -77,43 +78,68 @@ SUBJECT_DISPLAY = {
 }
 
 # ---------- Engine ----------
+ALL_QS = []
+LOCAL_DATABANK = {}
+AVAILABLE_SUBJECTS = list(ALL_SUBJECTS)
+HAS_ENGINE = False
+fetcher = None
+format_question = None
+search_databank = None
+get_random_question = None
+
 try:
     from cbt_engine import (
-        fetcher, format_question, search_databank,
-        get_random_question, LOCAL_DATABANK, ALL_QS,
+        fetcher as _fetcher,
+        format_question as _format_question,
+        search_databank as _search_databank,
+        get_random_question as _get_random_question,
+        LOCAL_DATABANK as _LOCAL_DATABANK,
+        ALL_QS as _ALL_QS,
+        AVAILABLE_SUBJECTS as _AVAILABLE_SUBJECTS,
     )
+    fetcher = _fetcher
+    format_question = _format_question
+    search_databank = _search_databank
+    get_random_question = _get_random_question
+    LOCAL_DATABANK = dict(_LOCAL_DATABANK)
+    ALL_QS = list(_ALL_QS)
+    AVAILABLE_SUBJECTS = list(_AVAILABLE_SUBJECTS) if _AVAILABLE_SUBJECTS else list(ALL_SUBJECTS)
     HAS_ENGINE = True
-    try:
-        from cbt_engine import AVAILABLE_SUBJECTS
-    except ImportError:
-        AVAILABLE_SUBJECTS = [s for s in ALL_SUBJECTS if LOCAL_DATABANK.get(s)]
-except Exception as _e:
-    print(f"[WARN] cbt_engine not loaded ({_e}) — using fallbacks")
-    HAS_ENGINE = False
-    AVAILABLE_SUBJECTS = list(ALL_SUBJECTS)
-
-    def search_databank(q, s=None, limit=5): return []
-    def get_random_question(s=None): return None
-
-    def format_question(q, i, t):
+    print(f"[ssmain] ✅ cbt_engine loaded — {len(ALL_QS)} questions across {len(AVAILABLE_SUBJECTS)} subjects")
+except Exception as _eng_err:
+    print(f"[ssmain] ❌ cbt_engine failed to load: {_eng_err}")
+    traceback.print_exc()
+    # Safe fallbacks so the bot still starts
+    def _format_question(q, i, t):
         lines = [f"Q{i}/{t}", q.get("question", "")]
         for L in ("A", "B", "C", "D"):
             v = q.get(f"option_{L.lower()}")
-            if v: lines.append(f"{L}) {v}")
+            if v:
+                lines.append(f"{L}) {v}")
         return "\n".join(lines)
 
+    def _search_databank(q, s=None, limit=5):
+        return []
+
+    def _get_random_question(s=None):
+        return None
+
+    class _F:
+        def fetch(self, s, y=None, limit=40):
+            return []
+    fetcher = _F()
+    format_question = _format_question
+    search_databank = _search_databank
+    get_random_question = _get_random_question
     LOCAL_DATABANK = {}
     ALL_QS = []
-    class _F:
-        def fetch(self, s, y=None, limit=40): return []
-    fetcher = _F()
-
-if not AVAILABLE_SUBJECTS:
     AVAILABLE_SUBJECTS = list(ALL_SUBJECTS)
+    HAS_ENGINE = False
 
 # ---------- Markdown escape ----------
 def md(s):
-    if s is None: return ""
+    if s is None:
+        return ""
     s = str(s)
     return (s.replace("\\", "\\\\").replace("_", "\\_").replace("*", "\\*")
              .replace("`", "\\`").replace("[", "\\["))
@@ -138,31 +164,43 @@ BOTTOM_KEYBOARD = ReplyKeyboardMarkup(
 def load_data():
     global USER_DATA
     if DATA_FILE.exists():
-        try: USER_DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-        except Exception: USER_DATA = {}
+        try:
+            USER_DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            USER_DATA = {}
 
 
 def save_data():
-    try: DATA_FILE.write_text(json.dumps(USER_DATA, indent=2), encoding="utf-8")
-    except Exception: pass
+    try:
+        DATA_FILE.write_text(json.dumps(USER_DATA, indent=2), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def load_processed_tx():
     global PROCESSED_TX
     if PROCESSED_TX_FILE.exists():
-        try: PROCESSED_TX = set(json.loads(PROCESSED_TX_FILE.read_text()))
-        except Exception: PROCESSED_TX = set()
+        try:
+            PROCESSED_TX = set(json.loads(PROCESSED_TX_FILE.read_text()))
+        except Exception:
+            PROCESSED_TX = set()
 
 
 def save_processed_tx():
-    try: PROCESSED_TX_FILE.write_text(json.dumps(sorted(PROCESSED_TX), indent=2))
-    except Exception: pass
+    try:
+        PROCESSED_TX_FILE.write_text(json.dumps(sorted(PROCESSED_TX), indent=2))
+    except Exception:
+        pass
 
 
 def mark_processed(tx_ref):
-    if not tx_ref: return False
-    if tx_ref in PROCESSED_TX: return False
-    PROCESSED_TX.add(tx_ref); save_processed_tx(); return True
+    if not tx_ref:
+        return False
+    if tx_ref in PROCESSED_TX:
+        return False
+    PROCESSED_TX.add(tx_ref)
+    save_processed_tx()
+    return True
 
 
 def get_user(uid, username=""):
@@ -178,7 +216,8 @@ def get_user(uid, username=""):
         }
         save_data()
     u = USER_DATA[uid]
-    if username: u["username"] = username
+    if username:
+        u["username"] = username
     if u.get("premium_until"):
         try:
             if datetime.now() > datetime.fromisoformat(u["premium_until"]):
@@ -186,24 +225,28 @@ def get_user(uid, username=""):
                 u["premium_until"] = None
                 u["premium_plan"] = None
                 save_data()
-        except Exception: pass
+        except Exception:
+            pass
     return u
 
 
 def is_premium(uid):
     u = get_user(uid)
-    if str(uid) == str(ADMIN_ID): return True
+    if str(uid) == str(ADMIN_ID):
+        return True
     return bool(u.get("is_premium"))
 
 
 def can_use_mock(uid, c=1):
-    if is_premium(uid): return True
+    if is_premium(uid):
+        return True
     u = get_user(uid)
     return u["mock_counts"].get(str(date.today()), 0) + c <= FREE_MOCK_QS_DAILY
 
 
 def consume_mock(uid, c, ids=None):
-    u = get_user(uid); today = str(date.today())
+    u = get_user(uid)
+    today = str(date.today())
     u["mock_counts"][today] = u["mock_counts"].get(today, 0) + c
     if ids:
         u["used_ids"].extend(ids)
@@ -212,19 +255,22 @@ def consume_mock(uid, c, ids=None):
 
 
 def get_mock_remaining(uid):
-    if is_premium(uid): return 999
+    if is_premium(uid):
+        return 999
     u = get_user(uid)
     return max(0, FREE_MOCK_QS_DAILY - u["mock_counts"].get(str(date.today()), 0))
 
 
 def can_use_tutor(uid):
-    if is_premium(uid): return True
+    if is_premium(uid):
+        return True
     u = get_user(uid)
     return u["tutor_counts"].get(str(date.today()), 0) < FREE_TUTOR_PER_DAY
 
 
 def consume_tutor(uid):
-    u = get_user(uid); today = str(date.today())
+    u = get_user(uid)
+    today = str(date.today())
     u["tutor_counts"][today] = u["tutor_counts"].get(today, 0) + 1
     save_data()
 
@@ -233,7 +279,8 @@ def get_leading():
     best_name, best_score = "No scores yet", 0
     for uid_k, d in USER_DATA.items():
         hist = d.get("history", [])
-        if not hist: continue
+        if not hist:
+            continue
         avg = sum(h.get("percent", 0) for h in hist) / len(hist)
         if avg > best_score:
             best_score, best_name = avg, d.get("username", f"User{str(uid_k)[-4:]}")
@@ -244,12 +291,15 @@ def add_premium(uid, days=None, plan="monthly"):
     uid = str(uid)
     days = days or PREMIUM_DAYS
     u = get_user(uid)
-    now = datetime.now(); base = now
+    now = datetime.now()
+    base = now
     if u.get("premium_until"):
         try:
             ex = datetime.fromisoformat(u["premium_until"])
-            if ex > now: base = ex
-        except Exception: pass
+            if ex > now:
+                base = ex
+        except Exception:
+            pass
     u["is_premium"] = True
     u["premium_until"] = (base + timedelta(days=days)).isoformat()
     u["premium_plan"] = plan
@@ -267,20 +317,27 @@ PLANS = {
 }
 
 
-def _resolve_plan(key): return PLANS.get(key, PLANS["monthly"])
+def _resolve_plan(key):
+    return PLANS.get(key, PLANS["monthly"])
 
 
 def _uid_from_tx_ref(tx_ref):
-    if not tx_ref or not tx_ref.startswith("UTME-"): return None
+    if not tx_ref or not tx_ref.startswith("UTME-"):
+        return None
     parts = tx_ref.split("-")
-    if len(parts) < 3: return None
+    if len(parts) < 3:
+        return None
     return parts[1] if parts[1].isdigit() else None
 
 
 def _grant_from_verified(tx_ref, plan_key):
     uid = _uid_from_tx_ref(tx_ref)
-    if not uid: print(f"[grant] bad tx_ref {tx_ref}"); return None
-    if not mark_processed(tx_ref): print(f"[grant] duplicate {tx_ref}"); return None
+    if not uid:
+        print(f"[grant] bad tx_ref {tx_ref}")
+        return None
+    if not mark_processed(tx_ref):
+        print(f"[grant] duplicate {tx_ref}")
+        return None
     plan = _resolve_plan(plan_key)
     add_premium(uid, days=plan["days"], plan=plan["key"])
     return uid
@@ -316,7 +373,8 @@ def upgrade_kb(uid):
 
 
 def main_menu(uid):
-    u = get_user(uid); rem = get_mock_remaining(uid)
+    u = get_user(uid)
+    rem = get_mock_remaining(uid)
     prem = (f"💎 Premium Active ({u.get('premium_plan','premium')}) ✅"
             if is_premium(uid)
             else f"💎 {PREMIUM_PRICE_TEXT}/mo · {PREMIUM_6MONTHS_TEXT}/6mo")
@@ -352,8 +410,10 @@ def subjects_kb(prefix):
             SUBJECT_DISPLAY.get(subj, subj.title()),
             callback_data=f"{prefix}_{subj}"))
         if len(row) == 2:
-            buttons.append(row); row = []
-    if row: buttons.append(row)
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
     buttons.append([InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")])
     return InlineKeyboardMarkup(buttons)
 
@@ -395,7 +455,8 @@ async def handle_callback(update, context):
 
     if data.startswith("study_subject_"):
         subj = data.replace("study_subject_", "")
-        u["study_subject"] = subj; save_data()
+        u["study_subject"] = subj
+        save_data()
         display = SUBJECT_DISPLAY.get(subj, subj.title())
         USER_SESSIONS[uid] = {"mode": "tutor", "subject": subj}
         count = len(LOCAL_DATABANK.get(subj, []))
@@ -459,12 +520,15 @@ async def handle_callback(update, context):
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("📝 Mock", callback_data="mock_menu")]]))
             return
-        qs = session["qs"]; idx = session["idx"]
-        if idx >= len(qs): return
+        qs = session["qs"]
+        idx = session["idx"]
+        if idx >= len(qs):
+            return
         current_q = qs[idx]
         correct = current_q.get("answer", "")
         is_correct = (ans == correct)
-        if is_correct: session["score"] += 1
+        if is_correct:
+            session["score"] += 1
         session["idx"] += 1
         feedback = ("✅ *Correct!* 🎉" if is_correct
                     else f"❌ *Wrong.* Answer is *{md(correct)}*")
@@ -476,7 +540,8 @@ async def handle_callback(update, context):
             txt = format_question(q, session["idx"] + 1, len(qs))
             await query.message.reply_text(txt, reply_markup=_answer_keyboard(q))
         else:
-            score = session["score"]; total = len(qs)
+            score = session["score"]
+            total = len(qs)
             percent = score * 100 // total if total else 0
             u["history"].append({
                 "date": str(date.today()),
@@ -528,7 +593,8 @@ async def handle_callback(update, context):
         qs = []
         for subj in sample:
             qs.extend(fetcher.fetch(subj, None, 2))
-        random.shuffle(qs); qs = qs[:5]
+        random.shuffle(qs)
+        qs = qs[:5]
         if not qs:
             await query.message.reply_text("⚠️ No questions loaded.")
             return
@@ -561,7 +627,8 @@ async def handle_callback(update, context):
         for subj in ["mathematics", "biology", "physics", "chemistry"]:
             if subj in LOCAL_DATABANK:
                 qs += fetcher.fetch(subj, None, 40)
-        random.shuffle(qs); qs = qs[:180]
+        random.shuffle(qs)
+        qs = qs[:180]
         if len(qs) < 5:
             qs = fetcher.fetch("english", None, 20)
         if not qs:
@@ -578,7 +645,8 @@ async def handle_callback(update, context):
         scores = []
         for uid_k, d in USER_DATA.items():
             hist = d.get("history", [])
-            if not hist: continue
+            if not hist:
+                continue
             avg = sum(h.get("percent", 0) for h in hist) / len(hist)
             scores.append((d.get("username", f"User{str(uid_k)[-4:]}"), avg, len(hist)))
         scores.sort(key=lambda x: x[1], reverse=True)
@@ -586,7 +654,8 @@ async def handle_callback(update, context):
         for i, (name, avg, c) in enumerate(scores[:15], 1):
             medal = ["🥇", "🥈", "🥉"][i - 1] if i <= 3 else f"{i}."
             text += f"{medal} {md(name)} — {avg:.1f}% ({c} mocks)\n"
-        if not scores: text += "No scores yet"
+        if not scores:
+            text += "No scores yet"
         await query.message.reply_text(
             text, parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
@@ -710,7 +779,8 @@ async def handle_msg(update, context):
         if text == "📊 My Score":
             hist = u.get("history", [])
             if not hist:
-                await update.message.reply_text("📊 No scores yet"); return
+                await update.message.reply_text("📊 No scores yet")
+                return
             avg = sum(h["score"] * 400 // h["total"] for h in hist if h["total"]) / len(hist)
             await update.message.reply_text(
                 f"📊 Avg {int(avg)}/400 · Exams {len(hist)}",
@@ -809,8 +879,10 @@ async def handle_msg(update, context):
                 tts.save(vp)
                 with open(vp, "rb") as f:
                     await update.message.reply_voice(voice=f, caption=f"🎙️ Voice — {display}")
-                try: os.remove(vp)
-                except Exception: pass
+                try:
+                    os.remove(vp)
+                except Exception:
+                    pass
             except Exception as e:
                 print(f"TTS error: {e}")
         return
@@ -866,6 +938,7 @@ def home():
 
 @flask_app.route("/health")
 def health():
+    per_subject = {s: len(LOCAL_DATABANK.get(s, [])) for s in AVAILABLE_SUBJECTS}
     return jsonify({
         "status": "ok", "version": "v26",
         "pricing": {"monthly": PREMIUM_PRICE_TEXT, "monthly_days": PREMIUM_DAYS,
@@ -875,7 +948,7 @@ def health():
         "databank": {"total_questions": len(ALL_QS),
                      "available_subjects": AVAILABLE_SUBJECTS,
                      "engine_loaded": HAS_ENGINE,
-                     "per_subject": {s: len(LOCAL_DATABANK[s]) for s in AVAILABLE_SUBJECTS}},
+                     "per_subject": per_subject},
         "gateways": {"flutterwave": bool(FLW_PUBLIC_KEY and FLW_SECRET_KEY),
                      "flutterwave_hash_set": bool(FLW_SECRET_HASH),
                      "paystack": bool(PAYSTACK_SECRET_KEY)},
@@ -927,7 +1000,7 @@ UPGRADE_PAGE = r"""
 </style></head>
 <body><div class="wrap">
  <div class="hero"><div class="crown">👑</div><h1>Upgrade to Premium</h1><p>Unlock everything. Score higher in UTME.</p></div>
- {% if not gateway_ready %}<div class="alert">⚠️ Payment gateway not yet configured. Please contact the admin or use the free invite option below.</div>{% endif %}
+ {% if not gateway_ready %}<div class="alert">⚠️ Payment gateway not configured yet. Contact admin or use the free invite option below.</div>{% endif %}
  <div class="user-wrap"><span class="user-badge">User ID: {{ uid }}</span></div>
 
  <div class="card"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span class="badge">PREMIUM BENEFITS</span></div>
@@ -959,7 +1032,7 @@ UPGRADE_PAGE = r"""
 <script>
 const UID="{{ uid }}"; const BOT="{{ bot_username }}"; const FLW_PK="{{ flw_public_key }}"; const API=window.location.origin;
 function payNow(planKey, amount){
- if(!FLW_PK){alert("Payment gateway not configured. Contact admin.");return;}
+ if(!FLW_PK){alert("Payment gateway not configured.");return;}
  const txRef="UTME-"+UID+"-"+Date.now();
  FlutterwaveCheckout({
   public_key:FLW_PK, tx_ref:txRef, amount:amount, currency:"NGN",
@@ -1016,7 +1089,8 @@ def verify_flutterwave():
                          headers={"Authorization": f"Bearer {FLW_SECRET_KEY}"}, timeout=15)
         result = r.json()
     except Exception as e:
-        print(f"[flw verify] {e}"); return jsonify({"status": "failed", "reason": "upstream"}), 502
+        print(f"[flw verify] {e}")
+        return jsonify({"status": "failed", "reason": "upstream"}), 502
     data = (result or {}).get("data") or {}
     if not (result.get("status") == "success" and data.get("status") == "successful"):
         return jsonify({"status": "failed", "reason": "not_successful"}), 400
@@ -1027,9 +1101,11 @@ def verify_flutterwave():
     if expected_uid and expected_uid != verified_uid:
         return jsonify({"status": "failed", "reason": "uid_mismatch"}), 400
     meta_plan = (data.get("meta") or {}).get("plan")
-    if meta_plan in PLANS: plan_key = meta_plan
+    if meta_plan in PLANS:
+        plan_key = meta_plan
     uid = _grant_from_verified(verified_tx_ref, plan_key)
-    if not uid: return jsonify({"status": "duplicate_or_invalid"}), 200
+    if not uid:
+        return jsonify({"status": "duplicate_or_invalid"}), 200
     return jsonify({"status": "success", "uid": uid, "plan": plan_key})
 
 
@@ -1037,11 +1113,14 @@ def verify_flutterwave():
 def flutterwave_webhook():
     signature = request.headers.get("verif-hash", "")
     if not FLW_SECRET_HASH or signature != FLW_SECRET_HASH:
-        print("[flw webhook] REJECT bad verif-hash"); return jsonify({"status": "unauthorized"}), 401
+        print("[flw webhook] REJECT bad verif-hash")
+        return jsonify({"status": "unauthorized"}), 401
     payload = request.get_json(silent=True) or {}
     data = payload.get("data") or {}
-    tx_ref = data.get("tx_ref", ""); tx_id = data.get("id")
-    if not tx_ref or not tx_id: return jsonify({"status": "ignored"}), 200
+    tx_ref = data.get("tx_ref", "")
+    tx_id = data.get("id")
+    if not tx_ref or not tx_id:
+        return jsonify({"status": "ignored"}), 200
     try:
         r = requests.get(f"https://api.flutterwave.com/v3/transactions/{tx_id}/verify",
                          headers={"Authorization": f"Bearer {FLW_SECRET_KEY}"}, timeout=15)
@@ -1050,14 +1129,16 @@ def flutterwave_webhook():
             return jsonify({"status": "not_verified"}), 200
         meta_plan = (v["data"].get("meta") or {}).get("plan", "monthly")
     except Exception as e:
-        print(f"[flw webhook] {e}"); return jsonify({"status": "error"}), 500
+        print(f"[flw webhook] {e}")
+        return jsonify({"status": "error"}), 500
     _grant_from_verified(tx_ref, meta_plan if meta_plan in PLANS else "monthly")
     return jsonify({"status": "success"})
 
 
 @flask_app.route("/webhook/paystack", methods=["POST"])
 def paystack_webhook():
-    raw = request.get_data(); sig = request.headers.get("x-paystack-signature", "")
+    raw = request.get_data()
+    sig = request.headers.get("x-paystack-signature", "")
     if PAYSTACK_SECRET_KEY:
         expected = hmac.new(PAYSTACK_SECRET_KEY.encode(), raw, hashlib.sha512).hexdigest()
         if not hmac.compare_digest(expected, sig):
@@ -1065,12 +1146,15 @@ def paystack_webhook():
     else:
         return jsonify({"status": "disabled"}), 200
     payload = request.get_json(silent=True) or {}
-    if payload.get("event") != "charge.success": return jsonify({"status": "ignored"}), 200
+    if payload.get("event") != "charge.success":
+        return jsonify({"status": "ignored"}), 200
     data = payload.get("data") or {}
     ref = data.get("reference", "")
     uid = _uid_from_tx_ref(ref) or str((data.get("metadata") or {}).get("user_id") or "") or None
-    if not uid: return jsonify({"status": "no_uid"}), 200
-    if not mark_processed(ref): return jsonify({"status": "duplicate"}), 200
+    if not uid:
+        return jsonify({"status": "no_uid"}), 200
+    if not mark_processed(ref):
+        return jsonify({"status": "duplicate"}), 200
     plan_key = (data.get("metadata") or {}).get("plan", "monthly")
     add_premium(uid, days=_resolve_plan(plan_key)["days"], plan=plan_key)
     return jsonify({"status": "success"})
@@ -1085,43 +1169,58 @@ async def channel_posting_job(app):
     posted_today = set()
     while True:
         try:
-            now = datetime.now(); lagos_hour = (now.hour + 1) % 24
+            now = datetime.now()
+            lagos_hour = (now.hour + 1) % 24
             key = f"{now.date()}_{lagos_hour}"
             if lagos_hour in (8, 13, 20) and key not in posted_today:
                 if not CHANNEL_ID:
-                    await asyncio.sleep(3600); continue
+                    await asyncio.sleep(3600)
+                    continue
                 try:
                     q = get_random_question()
-                    if not q: await asyncio.sleep(3600); continue
-                    intro = random.choice(["🌅 *Good Morning Champions!*", "☀️ *Rise and Shine!*", "🌙 *Evening Practice!*"])
+                    if not q:
+                        await asyncio.sleep(3600)
+                        continue
+                    intro = random.choice([
+                        "🌅 *Good Morning Champions!*",
+                        "☀️ *Rise and Shine!*",
+                        "🌙 *Evening Practice!*"])
                     cta = f"Invite {REFERRAL_REQUIRED}={REFERRAL_REWARD_DAYS} days FREE premium!"
-                    msg = (f"{intro}\n\n*{md(q.get('subject','JAMB'))} | {md(str(q.get('year','')))}*\n\n"
-                           f"{md(q.get('question','')[:320])}\n\n"
-                           f"A) {md(q.get('option_a','')[:70])}\n"
-                           f"B) {md(q.get('option_b','')[:70])}\n"
-                           f"C) {md(q.get('option_c','')[:70])}\n"
-                           f"D) {md(q.get('option_d','')[:70])}\n\n"
-                           f"{cta}\n\n👉 https://t.me/{BOT_USERNAME}\n"
-                           f"💎 {PREMIUM_PRICE_TEXT}/mo · {PREMIUM_6MONTHS_TEXT}/6mo")
+                    msg = (
+                        f"{intro}\n\n*{md(q.get('subject','JAMB'))} | {md(str(q.get('year','')))}*\n\n"
+                        f"{md(q.get('question','')[:320])}\n\n"
+                        f"A) {md(q.get('option_a','')[:70])}\n"
+                        f"B) {md(q.get('option_b','')[:70])}\n"
+                        f"C) {md(q.get('option_c','')[:70])}\n"
+                        f"D) {md(q.get('option_d','')[:70])}\n\n"
+                        f"{cta}\n\n👉 https://t.me/{BOT_USERNAME}\n"
+                        f"💎 {PREMIUM_PRICE_TEXT}/mo · {PREMIUM_6MONTHS_TEXT}/6mo"
+                    )
                     await app.bot.send_message(chat_id=CHANNEL_ID, text=msg, parse_mode="Markdown")
                     posted_today.add(key)
-                    if len(posted_today) > 10: posted_today.clear()
+                    if len(posted_today) > 10:
+                        posted_today.clear()
                 except Exception as e:
                     print(f"Channel error: {e}")
             await asyncio.sleep(1800)
         except Exception as e:
-            print(f"Channel job error: {e}"); await asyncio.sleep(3600)
+            print(f"Channel job error: {e}")
+            await asyncio.sleep(3600)
 
 
 async def set_bot_commands_and_menu(app):
     try:
         commands = [
-            BotCommand("start", "Main Menu"), BotCommand("menu", "Main Menu"),
-            BotCommand("mock", "Mock Exam"), BotCommand("study", "Study Plan"),
-            BotCommand("syllabus", "JAMB Syllabus"), BotCommand("score", "My Score"),
+            BotCommand("start", "Main Menu"),
+            BotCommand("menu", "Main Menu"),
+            BotCommand("mock", "Mock Exam"),
+            BotCommand("study", "Study Plan"),
+            BotCommand("syllabus", "JAMB Syllabus"),
+            BotCommand("score", "My Score"),
             BotCommand("tutor", "Ask Tutor"),
             BotCommand("invite", f"Invite {REFERRAL_REQUIRED} = {REFERRAL_REWARD_DAYS} Days FREE"),
-            BotCommand("premium", "Upgrade Premium"), BotCommand("help", "Help"),
+            BotCommand("premium", "Upgrade Premium"),
+            BotCommand("help", "Help"),
         ]
         await app.bot.set_my_commands(commands)
         await app.bot.set_chat_menu_button(menu_button=MenuButtonCommands(text="Menu"))
@@ -1133,18 +1232,22 @@ async def set_bot_commands_and_menu(app):
 
 # ---------- Main ----------
 def main():
-    load_data()
-    load_processed_tx()
+    try:
+        load_data()
+        load_processed_tx()
+    except Exception as e:
+        print(f"[startup] data load error: {e}")
 
     threading.Thread(target=run_flask, daemon=True).start()
     print(f"🌐 Flask on port {PORT}")
     print(f"📚 Loaded: {len(ALL_QS)} questions | {len(AVAILABLE_SUBJECTS)} subjects")
     for s in AVAILABLE_SUBJECTS:
-        print(f"   {s}: {len(LOCAL_DATABANK[s])}")
+        print(f"   {s}: {len(LOCAL_DATABANK.get(s, []))}")
 
     if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN_HERE" or len(BOT_TOKEN) < 20:
         print("❌ BOT_TOKEN not set! Set it in config.py or env var.")
-        while True: time.sleep(60)
+        while True:
+            time.sleep(60)
 
     try:
         app = ApplicationBuilder().token(BOT_TOKEN).build()
@@ -1162,8 +1265,9 @@ def main():
         app.run_polling()
     except Exception as e:
         print(f"❌ Bot failed: {e}")
-        import traceback; traceback.print_exc()
-        while True: time.sleep(60)
+        traceback.print_exc()
+        while True:
+            time.sleep(60)
 
 
 if __name__ == "__main__":
