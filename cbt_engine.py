@@ -1,9 +1,11 @@
 """
-cbt_engine.py — loads every questions_*.json in the folder,
+cbt_engine.py — loads every questions_*.json in this folder,
 deduplicates, and exposes the interface ssmain.py expects.
+Never crashes: prints detailed diagnostics instead.
 """
 import json
 import random
+import traceback
 from pathlib import Path
 from collections import defaultdict
 
@@ -11,6 +13,7 @@ ALL_QS = []
 LOCAL_DATABANK = defaultdict(list)
 AVAILABLE_SUBJECTS = []
 _seen = set()
+LOAD_REPORT = {}   # filename -> count loaded
 
 
 def _fp(q):
@@ -71,32 +74,52 @@ def _add(q):
 
 def _load(path):
     try:
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        raw = Path(path).read_text(encoding="utf-8")
     except Exception as e:
-        print(f"[cbt_engine] skip {path}: {e}")
+        print(f"[cbt_engine] ⚠️  cannot read {path}: {e}")
+        return 0
+    try:
+        data = json.loads(raw)
+    except Exception as e:
+        print(f"[cbt_engine] ❌ {path} is not valid JSON: {e}")
         return 0
     if not isinstance(data, list):
-        print(f"[cbt_engine] {path} is not a list")
+        print(f"[cbt_engine] ❌ {path} is not a JSON array")
         return 0
     n = 0
     for item in data:
-        if isinstance(item, dict) and _add(_normalize(item)):
-            n += 1
+        if isinstance(item, dict):
+            try:
+                if _add(_normalize(item)):
+                    n += 1
+            except Exception as e:
+                print(f"[cbt_engine] skip one item: {e}")
+    LOAD_REPORT[path.name] = n
     return n
 
 
 def _bootstrap():
-    files = sorted(Path(".").glob("questions_*.json"))
-    if not files:
-        print("[cbt_engine] ⚠️ no questions_*.json files found in current folder")
-    for f in files:
-        n = _load(str(f))
-        print(f"[cbt_engine] {f.name}: +{n} questions")
+    try:
+        files = sorted(Path(".").glob("questions_*.json"))
+        if not files:
+            print("[cbt_engine] ⚠️  no files matching questions_*.json in this folder")
+            print(f"[cbt_engine] current folder: {Path('.').resolve()}")
+            print(f"[cbt_engine] contents: {[p.name for p in Path('.').iterdir()]}")
+        for f in files:
+            n = _load(str(f))
+            print(f"[cbt_engine] {f.name}: +{n} questions")
 
-    AVAILABLE_SUBJECTS.extend(sorted(k for k, v in LOCAL_DATABANK.items() if v))
-    print(f"[cbt_engine] ✅ TOTAL: {len(ALL_QS)} questions across {len(AVAILABLE_SUBJECTS)} subjects")
-    for k in AVAILABLE_SUBJECTS:
-        print(f"   {k}: {len(LOCAL_DATABANK[k])}")
+        for k, v in LOCAL_DATABANK.items():
+            if v:
+                AVAILABLE_SUBJECTS.append(k)
+        AVAILABLE_SUBJECTS.sort()
+
+        print(f"[cbt_engine] ✅ TOTAL: {len(ALL_QS)} questions across {len(AVAILABLE_SUBJECTS)} subjects")
+        for k in AVAILABLE_SUBJECTS:
+            print(f"   {k}: {len(LOCAL_DATABANK[k])}")
+    except Exception as e:
+        print(f"[cbt_engine] ❌ bootstrap error: {e}")
+        traceback.print_exc()
 
 
 _bootstrap()
