@@ -1,0 +1,12 @@
+user_data.json
+processed_tx.json
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+env/
+generated/
+.DS_Store
+*.log
